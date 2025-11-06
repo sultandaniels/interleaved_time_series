@@ -78,7 +78,7 @@ def get_multi_sys_ys(datasource, hay_len=5, ny=5, interleave_style="pretrain"):
 
     print(f"interleave_style: {interleave_style}")
 
-    pre_path = f"/data/shared/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/{datasource}_"
+    pre_path = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/{datasource}_"
     if interleave_style == "pretrain":
         path = f"{pre_path}interleaved_traces_ortho_haar_ident_C_multi_cut.pkl"
     elif interleave_style == "needle_in_haystack":
@@ -133,7 +133,7 @@ def get_multi_sys_ys(datasource, hay_len=5, ny=5, interleave_style="pretrain"):
 
 def get_multi_sys_ys_needle_in_haystack(datasource, hay_len=5, ny=5):
     #load the interleaved traces val data
-    path = f"/data/shared/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/{datasource}_irrelevant_tokens_new_hay_insert_interleaved_traces_ortho_haar_ident_C_haystack_len_{hay_len}.pkl"
+    path = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/{datasource}_irrelevant_tokens_new_hay_insert_interleaved_traces_ortho_haar_ident_C_haystack_len_{hay_len}.pkl"
 
     with open(path, 'rb') as f:
         data = pickle.load(f)
@@ -427,8 +427,8 @@ def save_pseudo_pred_medians(config, seg_starts_per_config, pseudo_pred_errs, st
         fin_pseudo_pred_med_values[step] = med_value
 
     #save the fin_pseudo_pred_med_values to a pkl file (make path more general later)
-    os.makedirs(f"/data/shared/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/", exist_ok=True)
-    with open(f"/data/shared/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/val_irrelevant_tokens_new_hay_insert_pseudo_pred_medians_ortho_haar_ident_C_haystack_len_{haystack_len}.pkl", 'wb') as f:
+    os.makedirs(f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/", exist_ok=True)
+    with open(f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/val_irrelevant_tokens_new_hay_insert_pseudo_pred_medians_ortho_haar_ident_C_haystack_len_{haystack_len}.pkl", 'wb') as f:
         pickle.dump(fin_pseudo_pred_med_values, f)
         print(f"Saved fin_pseudo_pred_med_values")
 
@@ -639,7 +639,7 @@ if __name__ == "__main__":
         else:
             label = "Train"
 
-        pseudo_pred_file = f"/data/shared/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/{datasource}_multi_cut_pseudo_pred_errs_ortho_haar_ident_C.pkl"
+        pseudo_pred_file = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/{datasource}_multi_cut_pseudo_pred_errs_ortho_haar_ident_C.pkl"
 
         if not os.path.exists(pseudo_pred_file):
 

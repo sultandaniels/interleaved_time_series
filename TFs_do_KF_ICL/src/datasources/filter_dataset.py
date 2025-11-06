@@ -442,6 +442,7 @@ def add_backstories(config, sim_objs, segments, mask_idx, sys_appear, sys_choice
 
         i += 1
 
+    debug_str = ''
     if segments.shape[0] <= config.n_positions:
         pre_concat_len = segments.shape[0] #the context len of segments before concatenation of zeros
 
@@ -451,9 +452,20 @@ def add_backstories(config, sim_objs, segments, mask_idx, sys_appear, sys_choice
 
         #add the indices of the zeros to the mask_idx list
         mask_idx.extend(np.arange(pre_concat_len, config.n_positions + 1))
+        debug_str = 'fewer'
 
     elif segments.shape[0] > config.n_positions:
         segments = segments[:config.n_positions + 1, :] #truncate the segments to the context length
+        #remove any mask indices that are greater than config.n_positions
+        mask_idx = [idx for idx in mask_idx if idx <= config.n_positions]
+        debug_str = 'greater'
+
+    # raise Exception(f"n_masks: {n_masks}. len(sys_appear): {len(sys_appear)}, len(seg_starts): {len(seg_starts)}, segments.shape: {segments.shape}, mask_idx: {mask_idx}")
+    #if there is an integer in mask_idx that is greater than or equal to config.n_positions
+    for idx in mask_idx:
+        if idx > config.n_positions + 1:
+            raise Exception(f"debug_str: {debug_str} mask_idx {idx} is out of bounds for segments with shape {segments.shape} x0_ind: {x0_ind}, seg_starts: {seg_starts}")
+    # print(f"mask_idx after backstory addition: {mask_idx}\n")
     
     return segments, mask_idx
 
@@ -465,7 +477,7 @@ class FilterDataset(Dataset):
         self.use_true_len = use_true_len
         if config.mem_suppress:
             #load the sim_objs
-            with open(f"/data/shared/ICL_Kalman_Experiments/train_and_test_data/{config.val_dataset_typ}/train_{config.val_dataset_typ}{config.C_dist}_state_dim_{config.nx}_sim_objs.pkl", "rb") as f:
+            with open(f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/{config.val_dataset_typ}/train_{config.val_dataset_typ}{config.C_dist}_state_dim_{config.nx}_sim_objs.pkl", "rb") as f:
                 sim_objs = pickle.load(f)
                 self.sim_objs = sim_objs
 
@@ -505,14 +517,14 @@ class FilterDataset(Dataset):
 
                 if config.masking or not (config.cached_data or config.masking):
                     orig_segments = segments #save the original segments for later use
-                    print(f"shape of segments before backstory addition: {segments.shape}")
+                    # print(f"shape of segments before backstory addition: {segments.shape}")
                     mask_idx = [] # initialize the mask index list
                     sys_appear = []
                     if config.backstory:
 
                         segments, mask_idx = add_backstories(config, self.sim_objs, segments, mask_idx, sys_appear, sys_choices, seg_starts, real_seg_lens)
 
-                        raise Exception(f"shape of segments after backstory addition: {segments.shape}")
+                        # raise Exception(f"shape of segments after backstory addition: {segments.shape}")
                     
                         # n_masks = 0 #number of sys that have been masked
                         # i = 0 #segment number in interleaved segments

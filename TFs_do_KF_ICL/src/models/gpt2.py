@@ -94,7 +94,9 @@ class GPT2(BaseModel):
                 mask_selected_indices = torch.zeros_like(mask_all_zeros, dtype=torch.bool)
                 for b, idx_list in enumerate(input_dict["mask_idx"]):
                     mask_idx_minus_1 = [int(idx) - 1 for idx in idx_list]
-                    mask_selected_indices[b, mask_idx_minus_1, :] = True #since the target has one less entry than the full seqment we need to subtract 1 from the index
+                    # print(f"\n\nmask_selected_indices shape: {mask_selected_indices.shape}, len(mask_idx_minus_1): {len(mask_idx_minus_1)}")
+                    # print(f"b: {b}, mask_idx_minus_1: {mask_idx_minus_1}, idx_list: {idx_list}")
+                    mask_selected_indices[b, mask_idx_minus_1, :] = True #since the target has one less entry than the full segment we need to subtract 1 from the index
 
                 mask = mask_all_zeros | mask_selected_indices #combine the two masks with a logical OR
 

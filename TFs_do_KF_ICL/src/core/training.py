@@ -36,7 +36,7 @@ def setup_train(model, train_mix_dist=False, train_mix_state_dim=False):
         output_dir = '../outputs/' + identifier + experiment_name
 
         #for BLISS server 
-        ckpt_dir = "/data/shared/ICL_Kalman_Experiments/model_checkpoints/" + identifier + experiment_name
+        ckpt_dir = "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/" + identifier + experiment_name
 
 
         if not os.path.isdir(output_dir):
@@ -118,7 +118,7 @@ def get_callbacks_and_loggers_new_eig(model, output_dir, emb_dim): #add emb_dim 
     callbacks = [checkpoint_callback, lr_monitor]
     return callbacks, loggers
 
-def mem_suppress_ckpt_path(config, output_dir, experiment_ind=59):
+def mem_suppress_ckpt_path(config, output_dir, experiment_ind=70):
     if "mask" in output_dir or "backstory" in output_dir or "init_seg" in output_dir:
         if config.plateau:
             output_dir = f"{output_dir[:experiment_ind]}plateau_{output_dir[experiment_ind:]}"

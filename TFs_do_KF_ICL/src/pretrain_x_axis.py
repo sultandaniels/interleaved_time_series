@@ -52,7 +52,7 @@ if __name__ == "__main__":
     excess = True
     if excess:
         #get the pseudo prediction error medians
-        path = f"/data/shared/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/val_irrelevant_tokens_new_hay_insert_pseudo_pred_medians_ortho_haar_ident_C_haystack_len_{haystack_len}.pkl"
+        path = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/val_irrelevant_tokens_new_hay_insert_pseudo_pred_medians_ortho_haar_ident_C_haystack_len_{haystack_len}.pkl"
         if os.path.exists(path):
             with open(path, 'rb') as f:
                 fin_pseudo_pred_med_values = pickle.load(f)

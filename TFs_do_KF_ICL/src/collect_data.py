@@ -131,7 +131,7 @@ def collect_data(config, output_dir, only="", train_mix_dist=False, train_mix_st
 
         print("Saving", len(samples), "samples for", name)
 
-        loc = f"{output_dir}/"  + ("for_multi_cut_" if config.multi_cut_val else "") + ("opposite_ortho_" if opposite_ortho else "") + ("train_systems_" if specific_sim_objs and not opposite_ortho else "") +f"{name}_" + (f"{config.dataset_typ}" if name == "train" else f"{config.val_dataset_typ}") + f"{config.C_dist}" + f"_state_dim_{config.nx}" + ("_dist_mix" if train_mix_dist and name == "train" else "") + ("_state_dim_mix" if train_mix_state_dim and name == "train" else "") + (f"_sync_ind_{sync_ind}" if name == "train" and config.dataset_typ == "ortho_sync" or name == "val" and config.val_dataset_typ == "ortho_sync" else "")
+        loc = f"{output_dir}/"  + ("opposite_ortho_" if opposite_ortho else "") + ("train_systems_" if specific_sim_objs and not opposite_ortho else "") +f"{name}_" + (f"{config.dataset_typ}" if name == "train" else f"{config.val_dataset_typ}") + f"{config.C_dist}" + f"_state_dim_{config.nx}" + ("_dist_mix" if train_mix_dist and name == "train" else "") + ("_state_dim_mix" if train_mix_state_dim and name == "train" else "") + (f"_sync_ind_{sync_ind}" if name == "train" and config.dataset_typ == "ortho_sync" or name == "val" and config.val_dataset_typ == "ortho_sync" else "")
 
         with open(loc + ".pkl", "wb") as f:
             pickle.dump(samples, f)
@@ -213,4 +213,4 @@ if __name__ == "__main__":
 
     config = Config()
     
-    collect_data(config, "/data/shared/ICL_Kalman_Experiments/train_and_test_data/ortho_sync", only, train_mix_dist, opposite_ortho=opposite_ortho)
+    collect_data(config, "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/ortho_haar", only, train_mix_dist, opposite_ortho=opposite_ortho)
