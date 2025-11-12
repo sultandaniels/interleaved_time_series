@@ -6,8 +6,8 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --gpus-per-node=1
-#SBATCH --mem=480G
-#SBATCH --time=48:00:00
+#SBATCH --mem=120G
+#SBATCH --time=12:00:00
 #SBATCH --output=%x-%j.out
 #SBATCH --error=%x-%j.err
 
@@ -24,6 +24,6 @@ nvidia-smi
 python -c "import torch; print('PyTorch:', torch.__version__, 'CUDA available:', torch.cuda.is_available())"
 
 cd /projects/benv/sdaniels2/interleaved_time_series/TFs_do_KF_ICL/src
-python data_train.py --multi_haystack --model_name ortho_haar_big_mask_backstory_no_leak --make_preds --all_steps_in
+python data_train.py --multi_haystack --model_name ortho_haar_big_mask_backstory_no_leak_mid --make_preds --all_steps_in
 
 echo "Job finished at: $(date)"

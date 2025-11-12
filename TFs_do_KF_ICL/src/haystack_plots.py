@@ -590,10 +590,10 @@ def plot_haystack_train_conv(config, colors, fin_quartiles_ckpt, beg_quartiles_c
     # else:
     #     steps = [1,2,3]
 
-    # #load the pseudo_pred_errs from a file
-    # with open(f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/val_irrelevant_tokens_new_hay_insert_pseudo_pred_errs_ortho_haar_ident_C_haystack_len_1.pkl", 'rb') as f:
-    #     pseudo_pred_errs = pickle.load(f)
-    #     print(f"Loaded pseudo_pred_errs")
+    #load the pseudo_pred_errs from a file
+    with open(f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/val_irrelevant_tokens_new_hay_insert_pseudo_pred_errs_ortho_haar_ident_C_haystack_len_1.pkl", 'rb') as f:
+        pseudo_pred_errs = pickle.load(f)
+        print(f"Loaded pseudo_pred_errs")
 
     if len(steps) > len(colors):
         # generate more colors from viridis colormap
@@ -665,34 +665,34 @@ def plot_haystack_train_conv(config, colors, fin_quartiles_ckpt, beg_quartiles_c
                     ax_len.plot(x_values, beg_qs[1], label=f"{key_lab}: {step}{beg_lab_suffix}", markersize=1 if "OLS" in key_lab else 5, marker="x", color=color, linestyle="-" if "OLS_ir" in key_lab else (":" if "OLS_analytical" in key_lab else "--"), linewidth=5 if "OLS_analytical" in key_lab else 2)
                     ax_len.fill_between(x_values, beg_qs[0], beg_qs[2], alpha=0.2, color=color)
 
-                    # #plot the pseudo prediction errors
-                    # #take the median of the pseudo prediction errors
-                    # pseudo_pred_meds = np.median(pseudo_pred_errs, axis=1)
-                    # print(f"pseudo_pred_meds[0,2]: {pseudo_pred_meds[0,2]}")
-                    # print(f"shape of pseudo_pred_meds: {pseudo_pred_meds.shape}")
-                    # pseudo_pred_qs = np.quantile(pseudo_pred_meds, [0.25, 0.5, 0.75], axis=0)
-                    # print(f"shape of pseudo_pred_qs: {pseudo_pred_qs.shape}")
-                    # print(f"value of index 1 + step: {1 + step}")
+                    #plot the pseudo prediction errors
+                    #take the median of the pseudo prediction errors
+                    pseudo_pred_meds = np.median(pseudo_pred_errs, axis=1)
+                    print(f"pseudo_pred_meds[0,2]: {pseudo_pred_meds[0,2]}")
+                    print(f"shape of pseudo_pred_meds: {pseudo_pred_meds.shape}")
+                    pseudo_pred_qs = np.quantile(pseudo_pred_meds, [0.25, 0.5, 0.75], axis=0)
+                    print(f"shape of pseudo_pred_qs: {pseudo_pred_qs.shape}")
+                    print(f"value of index 1 + step: {1 + step}")
 
                     x_values = np.array(x_values, dtype=float)
 
                     skip = 5
-                    # y = np.full(x_values[::skip].shape, pseudo_pred_qs[1, 1 + step], dtype=float)
-                    # yerr_lower = np.full(x_values[::skip].shape, pseudo_pred_qs[1, 1 + step] - pseudo_pred_qs[0, 1 + step], dtype=float)
-                    # yerr_upper = np.full(x_values[::skip].shape, pseudo_pred_qs[2, 1 + step] - pseudo_pred_qs[1, 1 + step], dtype=float)
+                    y = np.full(x_values[::skip].shape, pseudo_pred_qs[1, 1 + step], dtype=float)
+                    yerr_lower = np.full(x_values[::skip].shape, pseudo_pred_qs[1, 1 + step] - pseudo_pred_qs[0, 1 + step], dtype=float)
+                    yerr_upper = np.full(x_values[::skip].shape, pseudo_pred_qs[2, 1 + step] - pseudo_pred_qs[1, 1 + step], dtype=float)
 
-                    # ax.errorbar(
-                    #     x_values[::skip], y,
-                    #     yerr=[yerr_lower, yerr_upper],
-                    #     fmt='o', color=colors[col_count],
-                    #     label=f"Pseudoinv: {step}{final_lab_suffix}", capsize=2, markersize=5, marker=".", linestyle=":", linewidth=2, zorder=100
-                    # )
-                    # ax_len.errorbar(
-                    #     x_values[::skip], y,
-                    #     yerr=[yerr_lower, yerr_upper],
-                    #     fmt='o', color=colors[col_count],
-                    #     label=f"Pseudoinv: {step}{final_lab_suffix}", capsize=2, markersize=5, marker=".", linestyle=":", linewidth=2, zorder=100
-                    # )
+                    ax.errorbar(
+                        x_values[::skip], y,
+                        yerr=[yerr_lower, yerr_upper],
+                        fmt='o', color=colors[col_count],
+                        label=f"Pseudoinv: {step}{final_lab_suffix}", capsize=2, markersize=5, marker=".", linestyle=":", linewidth=2, zorder=100
+                    )
+                    ax_len.errorbar(
+                        x_values[::skip], y,
+                        yerr=[yerr_lower, yerr_upper],
+                        fmt='o', color=colors[col_count],
+                        label=f"Pseudoinv: {step}{final_lab_suffix}", capsize=2, markersize=5, marker=".", linestyle=":", linewidth=2, zorder=100
+                    )
 
                 
                 # ax.errorbar(x_values[::skip], pseudo_pred_qs[1, 1 + step],
@@ -729,7 +729,7 @@ def plot_haystack_train_conv(config, colors, fin_quartiles_ckpt, beg_quartiles_c
     #make grid alpha 0.1
     # ax.set_axisbelow(True)
     ax.grid(color='gray', linestyle='--', linewidth=0.5, alpha=0.3, which='both')
-    leg = ax.legend(fontsize=16, ncol=2 if valA =="ident" else 1, loc="lower left")
+    leg = ax.legend(fontsize=8, ncol=2 if valA =="ident" else 1, loc="lower left")
     leg.set_zorder(101)  # Ensure legend is on top
     ax.set_xlim(x_values[0] - 1e3, x_values[-1] + 1e3)
     ax.set_ylim([2e-3, 2e0])

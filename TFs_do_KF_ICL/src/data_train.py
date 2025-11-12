@@ -906,7 +906,7 @@ def gen_ckpt_pred_steps(model_name): #change this function to use the model name
 
     elif model_name == "ortho_haar_big_mask_backstory_no_leak_mid":
         minval = 32000
-        maxval = 84000
+        maxval = 128000
         train_int = 1000
 
         ckpt_pred_steps = np.arange(minval, maxval + train_int, train_int)
@@ -3765,8 +3765,8 @@ if __name__ == '__main__':
         
     else:
 
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print("\ndevice:", device)
+        # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # print("\ndevice:", device)
         torch.cuda.empty_cache()
 
         if config.model_type == "GPT2":
@@ -3783,7 +3783,7 @@ if __name__ == '__main__':
                 n_dims_out=config.n_dims_out
             )
         
-        model.to(device)
+        # model.to(device)
 
         print(f"model: {model}")
         
@@ -3843,20 +3843,20 @@ if __name__ == '__main__':
         shade = True
 
 
-        if not config.acc:
-            # get the sim objs for the validation data
-            with open(output_dir + f"/data/val_{config.val_dataset_typ}{config.C_dist}_state_dim_{config.nx}_sim_objs.pkl", "rb") as f:
-                sim_objs = pickle.load(f)
+        # if not config.acc:
+        #     # get the sim objs for the validation data
+        #     with open(output_dir + f"/data/val_{config.val_dataset_typ}{config.C_dist}_state_dim_{config.nx}_sim_objs.pkl", "rb") as f:
+        #         sim_objs = pickle.load(f)
 
-            #set ys to be the validation data
-            with open(output_dir + f"/data/val_{config.val_dataset_typ}{config.C_dist}_state_dim_{config.nx}.pkl", "rb") as f:
-                samples = pickle.load(f)
-                # for every 2000 entries in samples, get the observation values and append them to the ys list
-                ys = np.stack(
-                    [entry["obs"][:config.n_positions + 1] for entry in samples], axis=0
-                ).reshape((config.num_val_tasks, config.num_traces["val"], config.n_positions + 1, config.ny)).astype(np.float32)
+        #     #set ys to be the validation data
+        #     with open(output_dir + f"/data/val_{config.val_dataset_typ}{config.C_dist}_state_dim_{config.nx}.pkl", "rb") as f:
+        #         samples = pickle.load(f)
+        #         # for every 2000 entries in samples, get the observation values and append them to the ys list
+        #         ys = np.stack(
+        #             [entry["obs"][:config.n_positions + 1] for entry in samples], axis=0
+        #         ).reshape((config.num_val_tasks, config.num_traces["val"], config.n_positions + 1, config.ny)).astype(np.float32)
 
-                gc.collect()  # Start the garbage collector
+        #         gc.collect()  # Start the garbage collector
 
-            print("ckpt_path", config.ckpt_path)
-            create_plots(config, model, run_preds, run_deg_kf_test, excess, num_systems=config.num_val_tasks, shade=shade, logscale=logscale, train_conv=train_conv, tf=tf, ys=ys, sim_objs=sim_objs, output_dir=output_dir)
+        #     print("ckpt_path", config.ckpt_path)
+        #     create_plots(config, model, run_preds, run_deg_kf_test, excess, num_systems=config.num_val_tasks, shade=shade, logscale=logscale, train_conv=train_conv, tf=tf, ys=ys, sim_objs=sim_objs, output_dir=output_dir)

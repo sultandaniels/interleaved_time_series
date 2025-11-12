@@ -11,6 +11,10 @@ import time
 import pickle
 from pytorch_lightning.tuner import Tuner
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.plugins.environments import SLURMEnvironment
+from pytorch_lightning.profilers import SimpleProfiler, PyTorchProfiler
+
+import signal
 # from pytorch_lightning.utilities.exceptions import _TunerExitException
 import json
 import torch
@@ -58,7 +62,7 @@ def train_gpt2(model, config, ckpt_dir, train_mix_dist=False, train_mix_state_di
 
     
 
-    #for BLISS server
+    #for server
     main_dir = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data"
 
     val_dset = FilterDataset(main_dir + f"/{config.val_dataset_typ}/val_{config.val_dataset_typ}{config.C_dist}_state_dim_{config.nx}.pkl", use_true_len=True) if os.path.exists(main_dir + f"/data/val_{config.val_dataset_typ}{config.C_dist}_state_dim_{config.nx}.pkl") else None
@@ -86,10 +90,25 @@ def train_gpt2(model, config, ckpt_dir, train_mix_dist=False, train_mix_state_di
     # )
 
     wandb_logger = WandbLogger(log_model="all")
+    slurm_plugin = None if os.environ.get("LOCAL_RANK") is not None else SLURMEnvironment(requeue_signal=signal.SIGUSR1)
+    # profiler = SimpleProfiler(dirpath=".", filename="perf_logs")
+
+#     profiler = PyTorchProfiler(
+#     dirpath=".",                # save in current working dir (your src)
+#     filename="pt_prof",
+#     profile_memory=True,        # track memory usage per op
+#     with_stack=True,            # include Python call stacks for ops
+#     use_cuda=True,
+# )
     trainer = pl.Trainer(
         fast_dev_run=False,
+        plugins=[slurm_plugin] if slurm_plugin else None,
+        # profiler=profiler,
+        enable_progress_bar=False,
         accelerator="gpu",
-        devices=config.devices,
+        precision="16-mixed",
+        devices=len(config.devices),
+        num_nodes=1,
         callbacks=callbacks,
         logger=wandb_logger,
         gradient_clip_algorithm=config.gradient_clip_algorithm,
@@ -99,7 +118,7 @@ def train_gpt2(model, config, ckpt_dir, train_mix_dist=False, train_mix_state_di
         max_steps=-1 if config.use_true_len else config.train_steps,
         accumulate_grad_batches=config.acc_grad_batch,
         # max_epochs=config.num_epochs,
-        strategy=DDPStrategy(find_unused_parameters=True) #only for BLISS GPUs
+        strategy=DDPStrategy( gradient_as_bucket_view=False, static_graph=True) #gradient_as_bucket_view might help with memory usage
     )
 
     if config.learning_rate == 0.0:
@@ -109,6 +128,9 @@ def train_gpt2(model, config, ckpt_dir, train_mix_dist=False, train_mix_state_di
 
     print(f"Dataset length: {len(datamodule.train_dataloader().dataset)}")
     print(f"Dataloader batches: {len(datamodule.train_dataloader())}")
+
+    # #compile the model
+    # model = torch.compile(model)
 
     # time how long it takes to train the model
     time_start = time.time()

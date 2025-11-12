@@ -9,6 +9,8 @@ import os
 import glob
 from pytorch_lightning import callbacks as pl_callbacks
 from pytorch_lightning import loggers as pl_loggers
+from pytorch_lightning.loggers import CSVLogger
+from pytorch_lightning.callbacks import DeviceStatsMonitor
 # from log_scale_checkpoints import LogScaleCheckpoint
 
 # Setup logger
@@ -118,7 +120,7 @@ def get_callbacks_and_loggers_new_eig(model, output_dir, emb_dim): #add emb_dim 
     callbacks = [checkpoint_callback, lr_monitor]
     return callbacks, loggers
 
-def mem_suppress_ckpt_path(config, output_dir, experiment_ind=70):
+def mem_suppress_ckpt_path(config, output_dir, experiment_ind=59):
     if "mask" in output_dir or "backstory" in output_dir or "init_seg" in output_dir:
         if config.plateau:
             output_dir = f"{output_dir[:experiment_ind]}plateau_{output_dir[experiment_ind:]}"
@@ -149,7 +151,10 @@ def mem_suppress_ckpt_path(config, output_dir, experiment_ind=70):
 
 def get_callbacks_and_loggers(config, output_dir, train_int): #add emb_dim as a parameter
     lr_monitor = pl_callbacks.LearningRateMonitor(logging_interval='epoch')
-    tb_logger = pl_loggers.TensorBoardLogger(output_dir)
+    try:
+        tb_logger = pl_loggers.TensorBoardLogger(output_dir)
+    except ModuleNotFoundError:
+        tb_logger = CSVLogger(save_dir=output_dir, name="logs")
     loggers = [tb_logger]
 
 
@@ -198,8 +203,9 @@ def get_callbacks_and_loggers(config, output_dir, train_int): #add emb_dim as a 
                                  "epoch={:02d}.ckpt".format(max_idx))
         logger.info("Resuming from checkpoint: {}".format(
             ckpt_path.split(os.path.sep)[-1]))
+        
 
-    callbacks = [checkpoint_callback, lr_monitor]
+    callbacks = [checkpoint_callback, lr_monitor, DeviceStatsMonitor(cpu_stats=True)]
     return callbacks, loggers
 
 

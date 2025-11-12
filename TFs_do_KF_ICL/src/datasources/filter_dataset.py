@@ -510,6 +510,8 @@ class FilterDataset(Dataset):
 
     def __getitem__(self, idx):
 
+        raise Exception("checking filter_dataset __getitem__")
+
         if config.multi_sys_trace:
             segments, sys_choices, sys_dict, seg_lens, seg_starts, real_seg_lens, sys_inds = populate_traces(config, config.num_tasks, self.entries, sim_objs=self.sim_objs)
 
