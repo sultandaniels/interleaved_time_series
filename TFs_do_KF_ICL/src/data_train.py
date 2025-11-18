@@ -3519,10 +3519,10 @@ if __name__ == '__main__':
             config.override("num_traces", {"train": 1, "val": 1})
 
         if config.mem_suppress:
-            ckpt_dir = mem_suppress_ckpt_path(config, ckpt_dir, experiment_ind=71)
+            ckpt_dir = mem_suppress_ckpt_path(config, ckpt_dir, experiment_ind=len(BASE_PATH) + len("model_checkpoints/GPT2/"))
             print(f"\n\nmem_suppress ckpt_dir: {ckpt_dir}")
 
-            output_dir = mem_suppress_ckpt_path(config, output_dir, experiment_ind=14)
+            output_dir = mem_suppress_ckpt_path(config, output_dir, experiment_ind=len("../outputs/GPT2/"))
             print(f"\n\nmem_suppress output_dir: {output_dir}")
 
             experiment_name = mem_suppress_ckpt_path(config,experiment_name,experiment_ind=0)
