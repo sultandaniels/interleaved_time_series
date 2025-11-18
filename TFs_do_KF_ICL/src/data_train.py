@@ -28,8 +28,6 @@ import resource
 print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
 os.environ["WANDB_SILENT"] = "true"
 
-os.environ["SOFT_MEM_GB"] = "100"  # set to e.g. 40 to enable
-
 
 def parameter_count(model, context_len):
     total_params = 0
