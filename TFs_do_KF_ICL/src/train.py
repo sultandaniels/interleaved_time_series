@@ -63,7 +63,7 @@ def train_gpt2(model, config, ckpt_dir, train_mix_dist=False, train_mix_state_di
     
 
     #for server
-    main_dir = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data"
+    main_dir = os.environ.get("BASE_PATH") + "train_and_test_data"
 
     val_dset = FilterDataset(main_dir + f"/{config.val_dataset_typ}/val_{config.val_dataset_typ}{config.C_dist}_state_dim_{config.nx}.pkl", use_true_len=True) if os.path.exists(main_dir + f"/data/val_{config.val_dataset_typ}{config.C_dist}_state_dim_{config.nx}.pkl") else None
 

@@ -110,3 +110,13 @@ rsync -avz \
   sultandaniels@hpc.brc.berkeley.edu:/global/scratch/users/sultandaniels/GPT2/241213_010648.743d5b_upperTriA_state_dim_10_gauss_C_lr_1.584893192461114e-05_num_train_sys_40000 \
   sultandaniels@hpc.brc.berkeley.edu:/global/scratch/users/sultandaniels/GPT2/241213_011012.743d5b_upperTriA_state_dim_10_gauss_C_lr_1.584893192461114e-05_num_train_sys_40000 \
   .
+
+
+
+rsync -av --progress --partial /data/shared/ICL_Kalman_Experiments/model_checkpoints/GPT2/250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/*.ckpt sdaniels2@dtai-login.delta.ncsa.illinois.edu:/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/GPT2/250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/
+
+rsync -av --progress --partial /data/shared/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/*.pkl sdaniels2@dtai-login.delta.ncsa.illinois.edu:/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/ortho_haar
+
+rsync -av --progress /home/sultand/interleaved_time_series/TFs_do_KF_ICL/outputs/GPT2/250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/needles sdaniels2@dtai-login.delta.ncsa.illinois.edu:/projects/benv/sdaniels2/interleaved_time_series/TFs_do_KF_ICL/outputs/GPT2/250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/needles
+
+

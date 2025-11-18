@@ -28,6 +28,10 @@ import resource
 print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
 os.environ["WANDB_SILENT"] = "true"
 
+#set a global variable for the path "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/"
+BASE_PATH = "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/"
+os.environ["BASE_PATH"] = BASE_PATH
+
 
 def parameter_count(model, context_len):
     total_params = 0
@@ -989,7 +993,7 @@ def generate_interleaved_traces(config, ys, sim_objs, num_trials):
     else:
         interleaving = f"multi_cut"
 
-    interleave_traces_dict_path = os.path.join(f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/{config.dataset_typ}/" + f"{config.datasource}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
+    interleave_traces_dict_path = os.path.join(f"{BASE_PATH}train_and_test_data/{config.dataset_typ}/" + f"{config.datasource}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
 
     # raise ValueError(f"interleave_traces_dict_path: {interleave_traces_dict_path} does not exist. Please create it before running this function.")
 
@@ -1309,7 +1313,7 @@ def set_config_params(config, model_name):
 
         output_dir = f"../outputs/{config.model_type}/{experiment_name}"
 
-        ckpt_dir = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/{config.model_type}/{experiment_name}"
+        ckpt_dir = f"{BASE_PATH}model_checkpoints/{config.model_type}/{experiment_name}"
 
     elif model_name == "ortho_haar_check":
         print("\n\nORTHOGONAL HAAR CHECK MEDIUM MODEL\n\n")
@@ -1357,7 +1361,7 @@ def set_config_params(config, model_name):
 
         output_dir = f"../outputs/{config.model_type}/{experiment_name}"
 
-        ckpt_dir = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints//{config.model_type}/{experiment_name}"
+        ckpt_dir = f"{BASE_PATH}model_checkpoints//{config.model_type}/{experiment_name}"
 
     elif model_name == "ident":
         print("\n\nIDENTITY MEDIUM MODEL\n\n")
@@ -2986,7 +2990,7 @@ def set_config_params(config, model_name):
 
     output_dir = f"../outputs/{config.model_type}/{experiment_name}"
 
-    ckpt_dir = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/{config.model_type}/{experiment_name}"
+    ckpt_dir = f"{BASE_PATH}model_checkpoints/{config.model_type}/{experiment_name}"
 
 
     return output_dir, ckpt_dir, experiment_name
@@ -3021,7 +3025,7 @@ def get_test_data(config, experiment_name, num_haystack_ex=50):
     # load the validation data
 
     #for BLISS server
-    path = "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data"
+    path = "{BASE_PATH}train_and_test_data"
     if (config.datasource == "val"):
 
         path = path + f"/{config.val_dataset_typ}/"
@@ -3457,21 +3461,21 @@ if __name__ == '__main__':
             ckpt = 4000 #default checkpoint to use for predictions
 
         
-        # ckpt_path = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/GPT2/250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=31000.ckpt" #normal big training run
+        # ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=31000.ckpt" #normal big training run
 
-        # ckpt_path = "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/GPT2/backstory_masked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=139000.ckpt" #masked_backstories
+        # ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_masked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=139000.ckpt" #masked_backstories
         
-        ckpt_path = "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/GPT2/backstory_unmasked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=34000.ckpt" #unmasked_backstories
+        ckpt_path = "{BASE_PATH}model_checkpoints/GPT2/backstory_unmasked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=34000.ckpt" #unmasked_backstories
 
-        # ckpt_path = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/GPT2/backstory_masked_250616_115216.fc25ec_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.584893192461114e-05_num_train_sys_40000/checkpoints/step={ckpt}.ckpt" #medium masked backstories beg
+        # ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_masked_250616_115216.fc25ec_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.584893192461114e-05_num_train_sys_40000/checkpoints/step={ckpt}.ckpt" #medium masked backstories beg
 
-        # ckpt_path = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/GPT2/backstory_masked_250616_115549.c799d7_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_4.4827548953825996e-05_num_train_sys_40000/checkpoints/step={ckpt}.ckpt" #small masked backstories beg
+        # ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_masked_250616_115549.c799d7_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_4.4827548953825996e-05_num_train_sys_40000/checkpoints/step={ckpt}.ckpt" #small masked backstories beg
 
-        # ckpt_path = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/GPT2/backstory_masked_250612_122321.8e31cc_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=171000.ckpt" #big masked backstories beg
+        # ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_masked_250612_122321.8e31cc_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=171000.ckpt" #big masked backstories beg
 
-        # ckpt_path = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/mamba2/250729_202822.09c446_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_5.7189906933638386e-06_num_train_sys_40000/checkpoints/step=1008000.ckpt" #mamba2 training run
+        # ckpt_path = f"{BASE_PATH}model_checkpoints/mamba2/250729_202822.09c446_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_5.7189906933638386e-06_num_train_sys_40000/checkpoints/step=1008000.ckpt" #mamba2 training run
 
-        # ckpt_path = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/GPT2/backstory_masked_251024_135800.f5836b_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=124000.ckpt" #masked backstories big no leak
+        # ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_masked_251024_135800.f5836b_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=124000.ckpt" #masked backstories big no leak
         
         run_preds, run_deg_kf_test, excess, shade = preds_thread(config, ckpt_path, make_preds, resume_train, train_conv, logscale, tf, train_mix_dist=train_mix_dist, train_mix_state_dim=train_mix_state_dim, output_dir=output_dir, ys=None, sim_objs=None, run_kf_ols=False)
         

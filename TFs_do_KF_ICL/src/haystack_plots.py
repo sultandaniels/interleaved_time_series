@@ -591,7 +591,7 @@ def plot_haystack_train_conv(config, colors, fin_quartiles_ckpt, beg_quartiles_c
     #     steps = [1,2,3]
 
     #load the pseudo_pred_errs from a file
-    with open(f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/val_irrelevant_tokens_new_hay_insert_pseudo_pred_errs_ortho_haar_ident_C_haystack_len_1.pkl", 'rb') as f:
+    with open(f"{os.environ.get("BASE_PATH")}train_and_test_data/ortho_haar/val_irrelevant_tokens_new_hay_insert_pseudo_pred_errs_ortho_haar_ident_C_haystack_len_1.pkl", 'rb') as f:
         pseudo_pred_errs = pickle.load(f)
         print(f"Loaded pseudo_pred_errs")
 
