@@ -158,7 +158,7 @@ def get_callbacks_and_loggers(config, output_dir, train_int): #add emb_dim as a 
     loggers = [tb_logger]
 
 
-    experiment_ind = 59
+    experiment_ind = 71
 
     if config.mem_suppress: #create new dir for mem suppress checkpoints
         output_dir = mem_suppress_ckpt_path(config, output_dir, experiment_ind)

@@ -4,9 +4,9 @@
 #SBATCH --partition=ghx4
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=72
 #SBATCH --gpus-per-node=1
-#SBATCH --mem=480G
+#SBATCH --mem=120G
 #SBATCH --time=48:00:00
 #SBATCH --output=%x-%j.out
 #SBATCH --error=%x-%j.err

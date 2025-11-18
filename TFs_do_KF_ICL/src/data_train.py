@@ -23,9 +23,12 @@ from get_last_checkpoint import get_last_checkpoint, split_path, find_smallest_s
 from haystack_plots import haystack_plots, load_quartiles_ckpt_files, haystack_plots_train_conv_full, haystack_plots_needle_full
 from gen_pred_cktps import gen_pred_ckpts
 from core.training import mem_suppress_ckpt_path
+import resource
 
 print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
 os.environ["WANDB_SILENT"] = "true"
+
+os.environ["SOFT_MEM_GB"] = "100"  # set to e.g. 40 to enable
 
 
 def parameter_count(model, context_len):
@@ -129,6 +132,8 @@ def preds_thread(config, ckpt_path, make_preds, resume_train, train_conv, logsca
     # print("empty_model keys:", empty_model.state_dict().keys())
     # print("empty_model wpe weight:", empty_model.state_dict()["_backbone.wpe.weight"])
 
+
+
     if config.model_type == "GPT2":
         model = GPT2.load_from_checkpoint(config.ckpt_path,
                                     n_dims_in=config.n_dims_in, n_positions=config.n_positions,
@@ -147,6 +152,13 @@ def preds_thread(config, ckpt_path, make_preds, resume_train, train_conv, logsca
 
 
     create_plots(config=config, model=model, run_preds=run_preds, run_deg_kf_test=run_deg_kf_test, excess=excess, num_systems=config.num_val_tasks, shade=shade, logscale=logscale, train_conv=train_conv, tf=tf, ys=ys, sim_objs=sim_objs, run_kf_ols=run_kf_ols, output_dir=output_dir)
+
+    try:
+        del model
+    except NameError:
+        pass
+    torch.cuda.empty_cache()
+    gc.collect()
 
     return run_preds, run_deg_kf_test, excess, shade
 
@@ -906,14 +918,14 @@ def gen_ckpt_pred_steps(model_name): #change this function to use the model name
 
     elif model_name == "ortho_haar_big_mask_backstory_no_leak_mid":
         minval = 32000
-        maxval = 128000
+        maxval = 122000
         train_int = 1000
 
         ckpt_pred_steps = np.arange(minval, maxval + train_int, train_int)
 
     elif model_name == "ortho_haar_big_unmask_backstory_no_leak_mid":
         minval = 32000
-        maxval = 84000
+        maxval = 121000
         train_int = 1000
 
         ckpt_pred_steps = np.arange(minval, maxval + train_int, train_int)
@@ -979,7 +991,7 @@ def generate_interleaved_traces(config, ys, sim_objs, num_trials):
     else:
         interleaving = f"multi_cut"
 
-    interleave_traces_dict_path = os.path.join(f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/{config.dataset_typ}/" + f"{config.datasource}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}.pkl")
+    interleave_traces_dict_path = os.path.join(f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/{config.dataset_typ}/" + f"{config.datasource}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
 
     # raise ValueError(f"interleave_traces_dict_path: {interleave_traces_dict_path} does not exist. Please create it before running this function.")
 
@@ -1031,6 +1043,13 @@ def generate_interleaved_traces(config, ys, sim_objs, num_trials):
 
 
 def predict_all_checkpoints(config, ckpt_dir, output_dir, logscale, ys, sim_objs, model_name):
+
+    try:
+        del model
+    except NameError:
+        pass
+    torch.cuda.empty_cache()
+    gc.collect()
         
     kal_step = None
 
@@ -2864,7 +2883,7 @@ def set_config_params(config, model_name):
     elif model_name == "ortho_haar_big_mask_backstory_no_leak_mid":
         experiment_name = "250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000"
 
-        print("\n\nORTHO HAAR BIG MASK BACKSTORY NO LEAK\n\n")
+        print("\n\nORTHO HAAR BIG MASK BACKSTORY NO LEAK FROM MID\n\n")
 
         # Dataset settings
         config.override("num_tasks", 40000)  # number of training systems
@@ -2915,7 +2934,7 @@ def set_config_params(config, model_name):
     elif model_name == "ortho_haar_big_unmask_backstory_no_leak_mid":
         experiment_name = "250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000"
 
-        print("\n\nORTHO HAAR BIG MASK BACKSTORY NO LEAK\n\n")
+        print("\n\nORTHO HAAR BIG UNMASK BACKSTORY NO LEAK FROM MID\n\n")
 
         # Dataset settings
         config.override("num_tasks", 40000)  # number of training systems
@@ -2948,7 +2967,7 @@ def set_config_params(config, model_name):
         config.override("use_true_len", False)  # Flag for a dataset length to be num_tasks
         config.override("batch_size", 8*40*2)  # 2048 #512 #usually 512 (~35GB) tune this to fit into GPU memory
         config.override("train_data_workers", 7)  # set to 1 (check if it changes the speed of the training process)
-        config.override("test_batch_size", 512)
+        config.override("test_batch_size", 320)
         config.override("test_data_workers", 7)  # keep at 1
 
         # Model settings
@@ -3165,6 +3184,15 @@ def update_dataset_typ(config, dataset_typ):
 # main function
 
 if __name__ == '__main__':
+
+    soft_gb = int(os.environ.get("SOFT_MEM_GB", "0"))  # set to e.g. 40 to enable
+    if soft_gb > 0:
+        try:
+            resource.setrlimit(resource.RLIMIT_AS, (soft_gb * 1024**3, resource.RLIM_INFINITY))
+            print(f"[debug] Set soft address-space limit to {soft_gb} GB")
+        except Exception as e:
+            print(f"[debug] Failed to set RLIMIT_AS: {e}")
+            
     wandb.login()
     # Create the parser
     parser = argparse.ArgumentParser(description='Run Predictions or not.')
@@ -3431,11 +3459,11 @@ if __name__ == '__main__':
             ckpt = 4000 #default checkpoint to use for predictions
 
         
-        ckpt_path = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/GPT2/250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=31000.ckpt" #normal big training run
+        # ckpt_path = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/GPT2/250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=31000.ckpt" #normal big training run
 
         # ckpt_path = "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/GPT2/backstory_masked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=139000.ckpt" #masked_backstories
         
-        # ckpt_path = "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/GPT2/backstory_unmasked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=59000.ckpt" #unmasked_backstories
+        ckpt_path = "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/GPT2/backstory_unmasked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=34000.ckpt" #unmasked_backstories
 
         # ckpt_path = f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/model_checkpoints/GPT2/backstory_masked_250616_115216.fc25ec_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.584893192461114e-05_num_train_sys_40000/checkpoints/step={ckpt}.ckpt" #medium masked backstories beg
 
@@ -3489,10 +3517,10 @@ if __name__ == '__main__':
             config.override("num_traces", {"train": 1, "val": 1})
 
         if config.mem_suppress:
-            ckpt_dir = mem_suppress_ckpt_path(config, ckpt_dir)
+            ckpt_dir = mem_suppress_ckpt_path(config, ckpt_dir, experiment_ind=71)
             print(f"\n\nmem_suppress ckpt_dir: {ckpt_dir}")
 
-            output_dir = mem_suppress_ckpt_path(config, output_dir, experiment_ind=16)
+            output_dir = mem_suppress_ckpt_path(config, output_dir, experiment_ind=14)
             print(f"\n\nmem_suppress output_dir: {output_dir}")
 
             experiment_name = mem_suppress_ckpt_path(config,experiment_name,experiment_ind=0)
@@ -3765,8 +3793,8 @@ if __name__ == '__main__':
         
     else:
 
-        # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # print("\ndevice:", device)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print("\ndevice:", device)
         torch.cuda.empty_cache()
 
         if config.model_type == "GPT2":
@@ -3783,7 +3811,7 @@ if __name__ == '__main__':
                 n_dims_out=config.n_dims_out
             )
         
-        # model.to(device)
+        model.to(device)
 
         print(f"model: {model}")
         

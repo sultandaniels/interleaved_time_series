@@ -24,8 +24,8 @@ class Config(object, metaclass=Singleton):
     distinct_cond_nums = 10
     val_dataset_typ = "ortho_haar"#"unifA" #"gaussA" #"gaussA_noscale" #"rotDiagA" #"rotDiagA_unif" #"rotDiagA_gauss" #"upperTriA" #"single_system" #"cond_num" #"ident" #"ortho" #"ortho_haar" #"ortho_sync"
     C_dist = "_ident_C" #"_unif_C" #"_gauss_C" #"_gauss_C_large_var" #"_single_system" #"upperTriA_gauss" #"_ident_C"
-    nx = 3
-    ny = 3
+    nx = 5
+    ny = 5
     n_noise = 1
     num_traces = {"train": 1, "val": 1000}
     changing = False #used only for plotting
@@ -58,19 +58,19 @@ class Config(object, metaclass=Singleton):
     num_epochs = 1 #minimum number of epochs to train for
     train_int = 1000 #1000 #number of steps between logging (train interval)
     use_true_len = False #Flag for a dataset length to be num_tasks
-    batch_size =  64 #1024 #512 #8*40 #usually 512 (~35GB) tune this to fit into GPU memory
+    batch_size =  6320 #1024 #512 #8*40 #usually 512 (~35GB) tune this to fit into GPU memory
     acc_grad_batch = 1 #number of batches to accumulate gradients over
-    train_data_workers = 1 #set to 1 (check if it changes the speed of the training process)
+    train_data_workers = 7 #set to 1 (check if it changes the speed of the training process)
     test_batch_size = 512
-    test_data_workers = 7 #keep at 1
+    test_data_workers = 1 #keep at 1
 
     # Model settings
     model_type = "GPT2" #"GPT2" #"transfoXL" #"olmo" #"mamba2"
     use_pos_emb = True #use positional embeddings
     n_positions = 250 - mask_budget*backstory_len if mem_suppress and not masking else 250  #500 for extended OLS #250 #context length
-    n_embd = 128 #128 #192 #288
-    n_layer = 12 #12 #24 #48
-    n_head = 8 #8 #12 #18
+    n_embd = 192 #128 #192 #288
+    n_layer = 24 #12 #24 #48
+    n_head = 12 #8 #12 #18
     n_dims_in = int(ny + (2*max_sys_trace) + 2) if multi_sys_trace else ny #input dimension is the observation dimension #input dimension is the observation dimension + special token parentheses + special start token + payload identifier
     n_dims_out = 5  #(IMPORTANT TO KEEP THIS AT 5 FOR NOW) TODO: this used to be 10 but needs to be fixed to match lin_sys.yaml
 
@@ -85,7 +85,7 @@ class Config(object, metaclass=Singleton):
     # clamp_len = 1000
 
     # Optimizer parameters
-    learning_rate = np.sqrt((len(devices) * batch_size)/512)*1*1.584893192461114e-05 #1.9054607179632464e-05. #(0.833333333)
+    learning_rate = np.sqrt((len(devices) * batch_size)/512)*(0.833333333)*1.584893192461114e-05 #1.9054607179632464e-05
     weight_decay = 1e-2
 
     # Gradient Clipping
