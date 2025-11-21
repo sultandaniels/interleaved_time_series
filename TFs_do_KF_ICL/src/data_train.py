@@ -29,7 +29,7 @@ print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
 os.environ["WANDB_SILENT"] = "true"
 
 #set a global variable for the path "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/"
-BASE_PATH = "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/"
+BASE_PATH = "/data/shared/ICL_Kalman_Experiments/"
 os.environ["BASE_PATH"] = BASE_PATH
 
 
@@ -968,6 +968,13 @@ def gen_ckpt_pred_steps(model_name): #change this function to use the model name
 
         ckpt_pred_steps = gen_pred_ckpts(minval, maxval, train_int, phases, hande_code_scale=False)
 
+    elif model_name == "ortho_haar_med_2dim":
+        minval = 1000
+        maxval = 33000
+        train_int = 1000
+
+        ckpt_pred_steps = np.arange(minval, maxval + train_int, train_int)
+
     return ckpt_pred_steps
 
 def generate_interleaved_traces(config, ys, sim_objs, num_trials):
@@ -990,10 +997,15 @@ def generate_interleaved_traces(config, ys, sim_objs, num_trials):
 
         if config.needle_final_seg_extended:
             interleaving += f"_needle_final_seg_extended"
+
+        if config.len_seg_haystack != 10:
+            interleaving += f"_haystack_seg_len_{config.len_seg_haystack}"
+        if config.fake_out:
+            interleaving += "_fake_out"
     else:
         interleaving = f"multi_cut"
 
-    interleave_traces_dict_path = os.path.join(f"{BASE_PATH}train_and_test_data/{config.dataset_typ}/" + f"{config.datasource}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
+    interleave_traces_dict_path = os.path.join(f"{BASE_PATH}train_and_test_data/{config.dataset_typ}/" + f"{config.datasource}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("identical_haystack_" if config.identical_haystack else "")+ f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
 
     # raise ValueError(f"interleave_traces_dict_path: {interleave_traces_dict_path} does not exist. Please create it before running this function.")
 
@@ -1096,6 +1108,9 @@ def predict_all_checkpoints(config, ckpt_dir, output_dir, logscale, ys, sim_objs
     #interleave traces
     interleave_traces_dict_path = generate_interleaved_traces(config, ys, sim_objs, num_trials)
     print(f"interleave_traces_dict_path: {interleave_traces_dict_path}")
+
+    if config.fake_out:
+        config.override("n_positions", config.n_positions + config.len_seg_haystack - 1)
 
     ckpt_pred_steps = gen_ckpt_pred_steps(model_name) #generate specific ckpt steps to predict on
     print(f"len of ckpt_pred_steps: {len(ckpt_pred_steps)}")
@@ -2984,6 +2999,58 @@ def set_config_params(config, model_name):
         
         config.override("learning_rate", np.sqrt((len(config.devices) * config.batch_size)/512)*(0.833333333)*1.584893192461114e-05)
 
+    elif model_name == "ortho_haar_med_2dim":
+        experiment_name = "251118_205910.9febfe_multi_sys_trace_ortho_haar_state_dim_2_ident_C_lr_1.584893192461114e-05_num_train_sys_40000"
+
+        print("\n\nORTHO HAAR 2DIM\n\n")
+
+        # Dataset settings
+        config.override("num_tasks", 40000)  # number of training systems
+        config.override("num_val_tasks", 100)  # number of test systems
+        config.override("dataset_typ", "ortho_haar")  # "unifA" #"gaussA" #"gaussA_noscale" #"rotDiagA" #"rotDiagA_unif" #"rotDiagA_gauss" #"upperTriA" #"single_system" #"cond_num" #"upperTriA_gauss" #"ident" #"ortho"
+        config.override("max_cond_num", 100)
+        config.override("distinct_cond_nums", 10)
+        config.override("val_dataset_typ", "ortho_haar")  # "unifA" #"gaussA" #"gaussA_noscale" #"rotDiagA" #"rotDiagA_unif" #"rotDiagA_gauss" #"upperTriA" #"single_system" #"cond_num" #"ident" #"ortho"
+        config.override("C_dist", "_ident_C")  # "_unif_C" #"_gauss_C" #"_gauss_C_large_var" #"_single_system" #"upperTriA_gauss" #"_ident_C"
+        config.override("nx", 2)
+        config.override("ny", 2)
+        config.override("n_noise", 1)
+        config.override("num_traces", {"train": 1, "val": 1000})
+        config.override("changing", False)  # used only for plotting
+
+        #mem_suppress experiment settings
+        config.override("mem_suppress", False) #run the memory suppression experiment
+        config.override("masking", False) #run the masking training run
+        config.override("cached_data", False) #use masked backstories
+        config.override("backstory", True) #use masked backstories
+        config.override("init_seg", False) #use masked initial segments
+        config.override("backstory_len", config.ny + 2) #length of the backstory
+        config.override("mask_budget", 10) #max # of systems that will be masked on first appearance (alpha)
+
+        # Training settings
+        config.override("devices", [0])  # which GPU
+        config.override("train_steps", 1008000)  # number of training steps (27000x3 = 81000 effective single GPU iterations) (num_tasks*num_traces[train])/batch_size
+        config.override("num_epochs", 1)  # minimum number of epochs to train for
+        config.override("train_int",1000)  # number of steps between logging (train interval)
+        config.override("use_true_len", False)  # Flag for a dataset length to be num_tasks
+        config.override("batch_size", 512)  # 2048 #512 #usually 512 (~35GB) tune this to fit into GPU memory
+        config.override("train_data_workers", 7)  # set to 1 (check if it changes the speed of the training process)
+        config.override("test_batch_size", 512)
+        config.override("test_data_workers", 7)  # keep at 1
+
+        # Model settings
+        config.override("model_type", "GPT2")  # "GPT2" #"transfoXL" #"olmo"
+        config.override("use_pos_emb", True)  # use positional embeddings
+        config.override("n_positions", 250 - config.mask_budget*config.backstory_len if config.mem_suppress and not config.masking else 250)  # 500 for extended OLS #250 #context length
+        config.override("n_embd", 128)
+        config.override("n_layer", 12)
+        config.override("n_head", 8)
+        config.override("n_dims_in", int(config.ny + (2 * config.max_sys_trace) + 2) if config.multi_sys_trace else config.ny)  # input dimension is the observation dimension + special token parentheses + special start token + payload identifier
+        config.override("n_dims_out", config.ny)  # (IMPORTANT TO KEEP THIS AT 5 FOR NOW) TODO: this used to be 10 but needs to be fixed to match lin_sys.yaml
+        
+        config.override("learning_rate", np.sqrt((len(config.devices) * config.batch_size)/512)**1.584893192461114e-05)
+
+
 
     else:
         raise ValueError("Model name not recognized. Please choose from the following: gauss, gauss_tiny, gauss_small, gauss_big, gauss_nope, ortho, ortho_tiny, ortho_small, ortho_big, ortho_nope, ident, ident_tiny, ident_small, ident_big, ident_nope")
@@ -3025,7 +3092,7 @@ def get_test_data(config, experiment_name, num_haystack_ex=50):
     # load the validation data
 
     #for BLISS server
-    path = "{BASE_PATH}train_and_test_data"
+    path = f"{BASE_PATH}train_and_test_data"
     if (config.datasource == "val"):
 
         path = path + f"/{config.val_dataset_typ}/"
@@ -3242,6 +3309,10 @@ if __name__ == '__main__':
     parser.add_argument('--haystack_len', type=int, help='Integer. length of the haystack to use for needle plots', default=None)  # Default value is 19
     parser.add_argument('--plateau', help='Boolean. backstory training from plateau', action='store_true')
     # parser.add_argument('--test_backstory', help='Boolean. Test on backstoried data', action='store_true')
+    parser.add_argument('--identical_haystack', help='Boolean. Run experiment that puts the identical trace in the haystack', action='store_true')
+    parser.add_argument('--len_seg_haystack', type=int, help="Integer. Length of haystack segments.", default=10)
+    parser.add_argument('--fake_out', help='Boolean. Run fake out experiment', action='store_true')
+
 
 
 
@@ -3333,6 +3404,12 @@ if __name__ == '__main__':
     plateau = args.plateau
     # print("test_backstory arg", args.test_backstory)
     # test_backstory = args.test_backstory
+    print("identical_haystack arg", args.identical_haystack)
+    identical_haystack = args.identical_haystack
+    print("len_seg_haystack arg", args.len_seg_haystack)
+    len_seg_haystack = args.len_seg_haystack
+    print("fake out arg", args.fake_out)
+    fake_out = args.fake_out
 
 
 
@@ -3412,6 +3489,18 @@ if __name__ == '__main__':
         config.override("zero_cut", zero_cut)
         config.override("needle_in_haystack", False)
 
+    config.override("identical_haystack", identical_haystack)
+    if config.identical_haystack:
+        print("Running identical haystack experiment\n\n\n")
+
+    config.override("len_seg_haystack", len_seg_haystack)
+    if config.len_seg_haystack != 10:
+        print(f"Running haystack segment length {config.len_seg_haystack} experiment\n\n\n")
+
+    config.override("fake_out", fake_out)
+    if config.fake_out:
+        print(f"Running fake out experiment\n\n\n")
+
     
     # Get the class variables in dictionary format
     config_dict  = {
@@ -3465,7 +3554,7 @@ if __name__ == '__main__':
 
         # ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_masked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=139000.ckpt" #masked_backstories
         
-        ckpt_path = "{BASE_PATH}model_checkpoints/GPT2/backstory_unmasked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=34000.ckpt" #unmasked_backstories
+        ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_unmasked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=34000.ckpt" #unmasked_backstories
 
         # ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_masked_250616_115216.fc25ec_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.584893192461114e-05_num_train_sys_40000/checkpoints/step={ckpt}.ckpt" #medium masked backstories beg
 
@@ -3545,7 +3634,7 @@ if __name__ == '__main__':
             ckpt_pred_steps = gen_ckpt_pred_steps(model_name)
 
             if all_steps_in:
-                steps_in = list(range(1, 9))
+                steps_in = list(range(1, config.len_seg_haystack+1))
             else:
                 if config.val_dataset_typ == "ident" or config.val_dataset_typ == "gaussA":
                     steps_in = [1,2,3,5,10]
@@ -3736,7 +3825,7 @@ if __name__ == '__main__':
                         else:
                             pred_ckpt_step = int(get_last_checkpoint(ckpt_dir + "/checkpoints/").split("=")[1].split(".")[0])
 
-                if (num_sys == 19 and not abs_err) or paren_swap:
+                if (num_sys == 19 and not abs_err) or only_needle_pos:
                     # #get the last checkpoint
                     # last_ckpt = get_last_checkpoint(output_dir + "/checkpoints/")
 

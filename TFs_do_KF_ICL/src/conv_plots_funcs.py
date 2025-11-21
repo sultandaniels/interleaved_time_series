@@ -48,11 +48,16 @@ def get_seg_starts_per_config(config, ex=0):
     # path to interleaved data file
     if config.needle_in_haystack:
         interleaving = f"haystack_len_{config.num_sys_haystack}"
+
+        if config.len_seg_haystack != 10:
+            interleaving += f"_haystack_seg_len_{config.len_seg_haystack}"
+        if config.fake_out:
+            interleaving += "_fake_out"
     else:
         interleaving = f"multi_cut"
 
     #load multi_sys_ys from interleaved_traces file
-    interleave_traces_dict_path = os.path.join(f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/{config.dataset_typ}/" + f"{config.datasource}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}.pkl")
+    interleave_traces_dict_path = os.path.join(f"{os.environ.get('BASE_PATH')}train_and_test_data/{config.dataset_typ}/" + f"{config.datasource}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("identical_haystack_" if config.identical_haystack else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
     
 
     if os.path.exists(interleave_traces_dict_path):

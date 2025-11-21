@@ -30,6 +30,9 @@ def comp_quartiles(config, err_lss_examples, ratio=False, train_conv=False, kal_
                 rat = err_lss_examples[key] / kal_err
             else:
                 rat = err_lss_examples[key]
+                if config.fake_out:
+                    print(f"rat.shape {rat.shape}")
+                    raise Exception(f"rat {rat[0,0,0,128:135]}")
 
             print(f"rat shape: {rat.shape}")
             num_sys_ex = rat.shape[0]
@@ -40,6 +43,8 @@ def comp_quartiles(config, err_lss_examples, ratio=False, train_conv=False, kal_
                 # print(f"shape of quartiles[{key}]: {quartiles[key].shape}")
             else:
                 quartiles[key] = np.percentile(rat[0], [25,50,75], axis=1)
+
+    # raise Exception(f"quartiles['MOP'][132]: {quartiles['MOP'][:,:132]}")
             
     return quartiles
 
@@ -51,13 +56,15 @@ def save_quartiles(quartiles_file, quartiles, seg_ext_quartiles_file, seg_ext_qu
     np.savez(seg_ext_quartiles_file, **seg_ext_quartiles)
     return None
 
-def load_quartiles(config, model_dir, experiment, ckpt_step):
+def load_quartiles(config, model_dir, experiment, ckpt_step, haystack_len=19):
     quartiles = None
     seg_ext_quartiles = None
 
-    quartiles_file = model_dir + experiment + "/needles/" + (config.datasource + "_" if config.datasource != "val" else "") + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + f"quartiles_step_{ckpt_step}.npz"
+    
 
-    seg_ext_quartiles_file = model_dir + experiment + "/needles/" + (config.datasource + "_" if config.datasource != "val" else "") + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") +  ("new_hay_insert_" if config.new_hay_insert else "") + ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + f"seg_ext_quartiles_step_{ckpt_step}.npz"
+    quartiles_file = model_dir + experiment + "/needles/" + (config.datasource + "_" if config.datasource != "val" else "") + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "")  + (f"len_seg_haystack_{config.len_seg_haystack}" if config.len_seg_haystack != 10 else "") + ("identical_haystack_" if config.identical_haystack else "") + ("fake_out_" if config.fake_out else "") + f"quartiles_step_{ckpt_step}_haystack_len_{haystack_len}.npz"
+
+    seg_ext_quartiles_file = model_dir + experiment + "/needles/" + (config.datasource + "_" if config.datasource != "val" else "") + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") +  ("new_hay_insert_" if config.new_hay_insert else "") + ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "")  + (f"len_seg_haystack_{config.len_seg_haystack}" if config.len_seg_haystack != 10 else "")+ ("identical_haystack_" if config.identical_haystack else "") + ("fake_out_" if config.fake_out else "") + f"seg_ext_quartiles_step_{ckpt_step}_haystack_len_{haystack_len}.npz"
 
     if os.path.exists(quartiles_file):
         print(f"Loading quartiles from {quartiles_file}")
@@ -144,6 +151,7 @@ def plot_needle_position(config, experiment, datasource, state_dim, ckpt_step, v
                         zorder=haystack_len if key == "MOP" else 0, color=color,
                         linewidth=2
                         )
+
 
                     step_count += 1
                 key_count += 1
@@ -253,7 +261,7 @@ def plot_needle_position(config, experiment, datasource, state_dim, ckpt_step, v
     now = datetime.now()
     timestamp = now.strftime("%Y%m%d_%H%M%S")
 
-    figure_dir = f"../outputs/GPT2" + ("_NoPE" if nope else "") + f"/{experiment}/figures/multi_sys_trace/needle_in_haystack_examples/{datasource}/" + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens/" if config.irrelevant_tokens else "") + ("same_tokens/" if config.same_tokens else "") + ("paren_swap/" if config.paren_swap else "") + ("new_hay_insert/" if config.new_hay_insert else "")
+    figure_dir = f"../outputs/GPT2" + ("_NoPE" if nope else "") + f"/{experiment}/figures/multi_sys_trace/needle_in_haystack_examples/{datasource}/" + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens/" if config.irrelevant_tokens else "") + ("same_tokens/" if config.same_tokens else "") + ("paren_swap/" if config.paren_swap else "") + ("new_hay_insert/" if config.new_hay_insert else "")+ ("identical_haystack/" if config.identical_haystack else "")+ (f"len_seg_haystack_{config.len_seg_haystack}/" if config.len_seg_haystack != 10 else "")  + ("fake_out/" if config.fake_out else "")
 
     os.makedirs(figure_dir, exist_ok=True)
     fig.savefig(figure_dir + (f"late_start_{config.late_start}_" if config.late_start is not None else "") + f"error_ratios_{valA}_embd_dim_{config.n_embd}_state_dim_{state_dim}{valC}_step_{ckpt_step}_haystack_len_{haystack_len}_{timestamp}.pdf", transparent=True)
@@ -359,7 +367,7 @@ def plot_steps_after_open_token(config, haystack_len, quartiles, seg_ext_quartil
     plt.tight_layout()
 
     
-    figure_dir = f"../outputs/GPT2" + ("_NoPE" if nope else "") + f"/{experiment}/figures/multi_sys_trace/needle_in_haystack_examples/{datasource}/" + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens/" if config.irrelevant_tokens else "") + ("same_tokens/" if config.same_tokens else "") + ("paren_swap/" if config.paren_swap else "") + ("new_hay_insert/" if config.new_hay_insert else "")
+    figure_dir = f"../outputs/GPT2" + ("_NoPE" if nope else "") + f"/{experiment}/figures/multi_sys_trace/needle_in_haystack_examples/{datasource}/" + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens/" if config.irrelevant_tokens else "") + ("same_tokens/" if config.same_tokens else "") + ("paren_swap/" if config.paren_swap else "") + ("new_hay_insert/" if config.new_hay_insert else "")+ ("identical_haystack/" if config.identical_haystack else "")+ (f"len_seg_haystack_{config.len_seg_haystack}/" if config.len_seg_haystack != 10 else "")  + ("fake_out/" if config.fake_out else "")
 
     os.makedirs(figure_dir, exist_ok=True)
     fig.savefig(figure_dir + (f"late_start_{config.late_start}_" if config.late_start is not None else "") + f"last_seg_context_{valA}_embd_dim_{config.n_embd}_step_{ckpt_step}_haystack_len_{haystack_len}_{timestamp}.pdf", transparent=True)
@@ -389,7 +397,7 @@ def compute_quartiles_ckpt(config, model_name, steps_in, model_dir, experiment, 
     if config.val_dataset_typ == "gaussA" and not abs_err:
         rat = True
         errs_dir = model_dir + experiment + f"/prediction_errors{config.C_dist}_step={kal_ckpt}.ckpt"
-        errs_loc = errs_dir + f"/train_conv_needle_haystack_len_{haystack_len}_{config.datasource}_" + f"{config.val_dataset_typ}_state_dim_{config.nx}_"  + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("new_hay_insert_" if config.new_hay_insert else "")
+        errs_loc = errs_dir + f"/train_conv_needle_haystack_len_{haystack_len}_{config.datasource}_" + f"{config.val_dataset_typ}_state_dim_{config.nx}_"  + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("new_hay_insert_" if config.new_hay_insert else "") + (f"len_seg_haystack_{config.len_seg_haystack}" if config.len_seg_haystack != 10 else "") + ("identical_haystack_" if config.identical_haystack else "")   + ("fake_out_" if config.fake_out else "")
 
         with open(errs_loc + "err_lss_examples.pkl", "rb") as f:
                 kal_ckpt_errs = pickle.load(f)
@@ -402,7 +410,9 @@ def compute_quartiles_ckpt(config, model_name, steps_in, model_dir, experiment, 
 
     if model_name == "ortho_haar":
         errs_dir = model_dir + experiment + f"/prediction_errors{config.C_dist}_step={kal_ckpt}.ckpt"
-        errs_loc = errs_dir + f"/train_conv_needle_haystack_len_{haystack_len}_{config.datasource}_" + f"{config.val_dataset_typ}_state_dim_{config.nx}_"  + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "")  + ("new_hay_insert_" if config.new_hay_insert else "")
+        errs_loc = errs_dir + f"/train_conv_needle_haystack_len_{haystack_len}_{config.datasource}_" + f"{config.val_dataset_typ}_state_dim_{config.nx}_"  + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "")  + ("new_hay_insert_" if config.new_hay_insert else "") + (f"len_seg_haystack_{config.len_seg_haystack}" if config.len_seg_haystack != 10 else "") + ("identical_haystack_" if config.identical_haystack else "")  + ("fake_out_" if config.fake_out else "")
+
+        print(f"in compute quartiles kal errs_loc: {errs_loc}")
 
         with open(errs_loc + "err_lss_examples.pkl", "rb") as f:
                 kal_ckpt_errs = pickle.load(f)
@@ -417,7 +427,7 @@ def compute_quartiles_ckpt(config, model_name, steps_in, model_dir, experiment, 
     for ckpt_step in ckpt_steps:
 
         errs_dir = model_dir + experiment + f"/prediction_errors{config.C_dist}_step={ckpt_step}.ckpt"
-        errs_loc = errs_dir + f"/train_conv_needle_haystack_len_{haystack_len}_{config.datasource}_{config.val_dataset_typ}_state_dim_{config.nx}_" + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("new_hay_insert_" if config.new_hay_insert else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") 
+        errs_loc = errs_dir + f"/train_conv_needle_haystack_len_{haystack_len}_{config.datasource}_{config.val_dataset_typ}_state_dim_{config.nx}_" + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("new_hay_insert_" if config.new_hay_insert else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + (f"len_seg_haystack_{config.len_seg_haystack}" if config.len_seg_haystack != 10 else "") + ("identical_haystack_" if config.identical_haystack else "")  + ("fake_out_" if config.fake_out else "")
 
         print(f"in compute quartiles ckpt errs_loc: {errs_loc}")
 
@@ -483,6 +493,8 @@ def compute_quartiles_ckpt(config, model_name, steps_in, model_dir, experiment, 
 
                 beg_seg_start = seg_starts_per_conf[needle][0]
                 for step in steps_in:
+                    if config.fake_out:
+                        step -= 1
                     for key in ["MOP"]: #, "OLS_ir_1", "OLS_ir_2", "OLS_ir_3", "OLS_analytical_ir_1", "OLS_analytical_ir_2", "OLS_analytical_ir_3"]:
                         if key not in  ["Zero", "Analytical_Simulation", "Kalman_rem", "Kalman", "Analytical_Kalman"]:
                             
@@ -493,25 +505,29 @@ def compute_quartiles_ckpt(config, model_name, steps_in, model_dir, experiment, 
                                 [quartiles[key][2, needle, fin_seg_start + step] - quartiles[key][1, needle, fin_seg_start + step]]
                             ]
 
+                            print(f"step: {step}, ys {ys}, fin_seg_start {fin_seg_start}, quartiles[key].shape {quartiles[key].shape}")
+
                             if needle == 0:
                                 if len(pred_ckpts) == 0:
-                                    if step == 1:
+                                    if step == 1 or (config.fake_out and step == 0):
                                         ys[key] = {}
                                         y_errs[key] = {}
                                         fin_quartiles_ckpt[key] = {}
                                         beg_quartiles_ckpt[key] = {}
 
-                                    ys[key][step] = [y]
-                                    y_errs[key][step] = [y_err]
+                                    # ys[key][step] = [y]
+                                    # y_errs[key][step] = [y_err]
+                                    raise Exception(f"quartiles['MOP'][:,needle, 128:135] {quartiles['MOP'][:,needle, 128:135]}")
                                     fin_quartiles_ckpt[key][step] = [quartiles[key][:, needle, fin_seg_start + step]]
                                     beg_quartiles_ckpt[key][step] = [quartiles[key][:, needle, beg_seg_start + step]]
 
                                 else:
 
-                                    ys[key][step].append(y)
-                                    y_errs[key][step].append(y_err)
+                                    # ys[key][step].append(y)
+                                    # y_errs[key][step].append(y_err)
                                     fin_quartiles_ckpt[key][step].append(quartiles[key][:, needle, fin_seg_start + step])
                                     beg_quartiles_ckpt[key][step].append(quartiles[key][:, needle, beg_seg_start + step])
+                            print(f"step: {step}, ys {ys}")
 
 
             pred_ckpts.append(ckpt_step)
@@ -546,11 +562,11 @@ def load_quartiles_ckpt_files(config, haystack_len, model_dir, experiment, abs_e
     print(f"config.val_dataset_typ: {config.val_dataset_typ}")
 
     print(f"config.irrelevant_tokens: {config.irrelevant_tokens}, config.new_hay_insert: {config.new_hay_insert}")
-    train_conv_fin_quartiles_file = model_dir + experiment + f"/needles/train_conv/" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("new_hay_insert_" if config.new_hay_insert else "") + (config.datasource + "_" if config.datasource != "val" else "") + (f"late_start_{config.late_start}_" if config.late_start is not None else "") + ("abs_err_" if abs_err else "") + f"train_conv_fin_quartiles_haystack_len_{haystack_len}.pkl"
+    train_conv_fin_quartiles_file = model_dir + experiment + f"/needles/train_conv/" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("new_hay_insert_" if config.new_hay_insert else "") + (config.datasource + "_" if config.datasource != "val" else "") + (f"late_start_{config.late_start}_" if config.late_start is not None else "") + ("abs_err_" if abs_err else "") + (f"len_seg_haystack_{config.len_seg_haystack}" if config.len_seg_haystack != 10 else "")+ ("identical_haystack_" if config.identical_haystack else "") + ("fake_out_" if config.fake_out else "")+ f"train_conv_fin_quartiles_haystack_len_{haystack_len}.pkl"
 
-    train_conv_beg_quartiles_file = model_dir + experiment + f"/needles/train_conv/" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "")  + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("new_hay_insert_" if config.new_hay_insert else "") + (config.datasource + "_" if config.datasource != "val" else "") + (f"late_start_{config.late_start}_" if config.late_start is not None else "") + ("abs_err_" if abs_err else "") + f"train_conv_beg_quartiles_haystack_len_{haystack_len}.pkl"
+    train_conv_beg_quartiles_file = model_dir + experiment + f"/needles/train_conv/" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "")  + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("new_hay_insert_" if config.new_hay_insert else "") + (config.datasource + "_" if config.datasource != "val" else "") + (f"late_start_{config.late_start}_" if config.late_start is not None else "") + ("abs_err_" if abs_err else "") + (f"len_seg_haystack_{config.len_seg_haystack}" if config.len_seg_haystack != 10 else "")+ ("identical_haystack_" if config.identical_haystack else "") + ("fake_out_" if config.fake_out else "")+ f"train_conv_beg_quartiles_haystack_len_{haystack_len}.pkl"
 
-    x_values_file = model_dir + experiment + f"/needles/train_conv/" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("new_hay_insert_" if config.new_hay_insert else "")  + (config.datasource + "_" if config.datasource != "val" else "") + (f"late_start_{config.late_start}_" if config.late_start is not None else "") + ("abs_err_" if abs_err else "") + f"x_values_haystack_len_{haystack_len}.npy"
+    x_values_file = model_dir + experiment + f"/needles/train_conv/" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("new_hay_insert_" if config.new_hay_insert else "")  + (config.datasource + "_" if config.datasource != "val" else "") + (f"late_start_{config.late_start}_" if config.late_start is not None else "") + (f"len_seg_haystack_{config.len_seg_haystack}" if config.len_seg_haystack != 10 else "")+ ("abs_err_" if abs_err else "") + ("fake_out_" if config.fake_out else "")+ ("identical_haystack_" if config.identical_haystack else "") + f"x_values_haystack_len_{haystack_len}.npy"
 
     fin_quartiles_ckpt = None
     beg_quartiles_ckpt = None
@@ -590,10 +606,11 @@ def plot_haystack_train_conv(config, colors, fin_quartiles_ckpt, beg_quartiles_c
     # else:
     #     steps = [1,2,3]
 
-    #load the pseudo_pred_errs from a file
-    with open(f"{os.environ.get("BASE_PATH")}train_and_test_data/ortho_haar/val_irrelevant_tokens_new_hay_insert_pseudo_pred_errs_ortho_haar_ident_C_haystack_len_1.pkl", 'rb') as f:
-        pseudo_pred_errs = pickle.load(f)
-        print(f"Loaded pseudo_pred_errs")
+    if config.nx == 5:
+        #load the pseudo_pred_errs from a file
+        with open(f"{os.environ.get('BASE_PATH')}train_and_test_data/ortho_haar/val_irrelevant_tokens_new_hay_insert_pseudo_pred_errs_ortho_haar_ident_C_haystack_len_1_state_dim_{config.nx}.pkl", 'rb') as f:
+            pseudo_pred_errs = pickle.load(f)
+            print(f"Loaded pseudo_pred_errs")
 
     if len(steps) > len(colors):
         # generate more colors from viridis colormap
@@ -610,6 +627,8 @@ def plot_haystack_train_conv(config, colors, fin_quartiles_ckpt, beg_quartiles_c
         if key == "MOP": #key == "OLS_analytical_ir_1" or key == "OLS_ir_1": #key == "MOP" or 
             col_count = 0
             for step in steps:
+                if config.fake_out:
+                    step -= 1
 
                 key_lab = "" if key == "MOP" else f"{key}: "
                 qs = np.array(fin_quartiles_ckpt[key][step])
@@ -640,7 +659,7 @@ def plot_haystack_train_conv(config, colors, fin_quartiles_ckpt, beg_quartiles_c
 
                     ax.fill_between(x_values, qs[0], qs[2], alpha=0.2, color=colors[col_count])
 
-                    ax_len.plot(x_values, qs[1], label=f"{key_lab}: {step}{final_lab_suffix}", markersize=5, marker=".", zorder=5 if key == "MOP" else 0, color=colors[col_count], linewidth=2)
+                    ax_len.plot(x_values, qs[1], label=f"{key_lab}{step}{final_lab_suffix}", markersize=5, marker=".", zorder=5 if key == "MOP" else 0, color=colors[col_count], linewidth=2)
                     ax_len.fill_between(x_values, qs[0], qs[2], alpha=0.2, color=colors[col_count])
 
                     color = ax.get_lines()[-1].get_color()
@@ -654,7 +673,7 @@ def plot_haystack_train_conv(config, colors, fin_quartiles_ckpt, beg_quartiles_c
                     beg_qs = np.array(beg_quartiles_ckpt[key][step])
                     beg_qs = np.transpose(beg_qs)
                     # set the color to the same as the fin quartiles
-                    ax.plot(x_values, beg_qs[1], label=f"{key_lab}: {step}{beg_lab_suffix}", markersize=1 if "OLS" in key_lab else 5, marker="x", color=color, linestyle="-" if "OLS_ir" in key_lab else (":" if "OLS_analytical" in key_lab else "--"), linewidth=5 if "OLS_analytical" in key_lab else 2)
+                    ax.plot(x_values, beg_qs[1], label=f"{step}{beg_lab_suffix}", markersize=1 if "OLS" in key_lab else 5, marker="x", color=color, linestyle="-" if "OLS_ir" in key_lab else (":" if "OLS_analytical" in key_lab else "--"), linewidth=5 if "OLS_analytical" in key_lab else 2)
 
                     # if not valA == "gaussA":
                     #     ax.fill_between(x_values, beg_qs[0], beg_qs[2], alpha=0.2, color=color)
@@ -662,37 +681,38 @@ def plot_haystack_train_conv(config, colors, fin_quartiles_ckpt, beg_quartiles_c
 
                     
 
-                    ax_len.plot(x_values, beg_qs[1], label=f"{key_lab}: {step}{beg_lab_suffix}", markersize=1 if "OLS" in key_lab else 5, marker="x", color=color, linestyle="-" if "OLS_ir" in key_lab else (":" if "OLS_analytical" in key_lab else "--"), linewidth=5 if "OLS_analytical" in key_lab else 2)
+                    ax_len.plot(x_values, beg_qs[1], label=f"{step}{beg_lab_suffix}", markersize=1 if "OLS" in key_lab else 5, marker="x", color=color, linestyle="-" if "OLS_ir" in key_lab else (":" if "OLS_analytical" in key_lab else "--"), linewidth=5 if "OLS_analytical" in key_lab else 2)
                     ax_len.fill_between(x_values, beg_qs[0], beg_qs[2], alpha=0.2, color=color)
 
-                    #plot the pseudo prediction errors
-                    #take the median of the pseudo prediction errors
-                    pseudo_pred_meds = np.median(pseudo_pred_errs, axis=1)
-                    print(f"pseudo_pred_meds[0,2]: {pseudo_pred_meds[0,2]}")
-                    print(f"shape of pseudo_pred_meds: {pseudo_pred_meds.shape}")
-                    pseudo_pred_qs = np.quantile(pseudo_pred_meds, [0.25, 0.5, 0.75], axis=0)
-                    print(f"shape of pseudo_pred_qs: {pseudo_pred_qs.shape}")
-                    print(f"value of index 1 + step: {1 + step}")
+                    if config.nx == 5:
+                        #plot the pseudo prediction errors
+                        #take the median of the pseudo prediction errors
+                        pseudo_pred_meds = np.median(pseudo_pred_errs, axis=1)
+                        print(f"pseudo_pred_meds[0,2]: {pseudo_pred_meds[0,2]}")
+                        print(f"shape of pseudo_pred_meds: {pseudo_pred_meds.shape}")
+                        pseudo_pred_qs = np.quantile(pseudo_pred_meds, [0.25, 0.5, 0.75], axis=0)
+                        print(f"shape of pseudo_pred_qs: {pseudo_pred_qs.shape}")
+                        print(f"value of index 1 + step: {1 + step}")
 
-                    x_values = np.array(x_values, dtype=float)
+                        x_values = np.array(x_values, dtype=float)
 
-                    skip = 5
-                    y = np.full(x_values[::skip].shape, pseudo_pred_qs[1, 1 + step], dtype=float)
-                    yerr_lower = np.full(x_values[::skip].shape, pseudo_pred_qs[1, 1 + step] - pseudo_pred_qs[0, 1 + step], dtype=float)
-                    yerr_upper = np.full(x_values[::skip].shape, pseudo_pred_qs[2, 1 + step] - pseudo_pred_qs[1, 1 + step], dtype=float)
+                        skip = 5
+                        y = np.full(x_values[::skip].shape, pseudo_pred_qs[1, 1 + step], dtype=float)
+                        yerr_lower = np.full(x_values[::skip].shape, pseudo_pred_qs[1, 1 + step] - pseudo_pred_qs[0, 1 + step], dtype=float)
+                        yerr_upper = np.full(x_values[::skip].shape, pseudo_pred_qs[2, 1 + step] - pseudo_pred_qs[1, 1 + step], dtype=float)
 
-                    ax.errorbar(
-                        x_values[::skip], y,
-                        yerr=[yerr_lower, yerr_upper],
-                        fmt='o', color=colors[col_count],
-                        label=f"Pseudoinv: {step}{final_lab_suffix}", capsize=2, markersize=5, marker=".", linestyle=":", linewidth=2, zorder=100
-                    )
-                    ax_len.errorbar(
-                        x_values[::skip], y,
-                        yerr=[yerr_lower, yerr_upper],
-                        fmt='o', color=colors[col_count],
-                        label=f"Pseudoinv: {step}{final_lab_suffix}", capsize=2, markersize=5, marker=".", linestyle=":", linewidth=2, zorder=100
-                    )
+                        ax.errorbar(
+                            x_values[::skip], y,
+                            yerr=[yerr_lower, yerr_upper],
+                            fmt='o', color=colors[col_count],
+                            label=f"Pseudoinv: {step}{final_lab_suffix}", capsize=2, markersize=5, marker=".", linestyle=":", linewidth=2, zorder=100
+                        )
+                        ax_len.errorbar(
+                            x_values[::skip], y,
+                            yerr=[yerr_lower, yerr_upper],
+                            fmt='o', color=colors[col_count],
+                            label=f"Pseudoinv: {step}{final_lab_suffix}", capsize=2, markersize=5, marker=".", linestyle=":", linewidth=2, zorder=100
+                        )
 
                 
                 # ax.errorbar(x_values[::skip], pseudo_pred_qs[1, 1 + step],
@@ -729,7 +749,10 @@ def plot_haystack_train_conv(config, colors, fin_quartiles_ckpt, beg_quartiles_c
     #make grid alpha 0.1
     # ax.set_axisbelow(True)
     ax.grid(color='gray', linestyle='--', linewidth=0.5, alpha=0.3, which='both')
-    leg = ax.legend(fontsize=8, ncol=2 if valA =="ident" else 1, loc="lower left")
+    if len(steps) > 8:
+        leg = ax.legend(fontsize=6, ncol=2, loc="lower left")
+    else:
+        leg = ax.legend(fontsize=8, ncol=2 if valA =="ident" else 1, loc="lower left")
     leg.set_zorder(101)  # Ensure legend is on top
     ax.set_xlim(x_values[0] - 1e3, x_values[-1] + 1e3)
     ax.set_ylim([2e-3, 2e0])
@@ -750,7 +773,7 @@ def plot_haystack_train_conv(config, colors, fin_quartiles_ckpt, beg_quartiles_c
     timestamp = now.strftime("%Y%m%d_%H%M%S")
 
 
-    figure_dir = f"../outputs/GPT2" + ("_NoPE" if nope else "") + f"/{experiment}/figures/multi_sys_trace/" + (f"{config.datasource}/" if config.datasource != "val" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens/" if config.irrelevant_tokens else "") + ("same_tokens/" if config.same_tokens else "") + ("paren_swap/" if config.paren_swap else "") 
+    figure_dir = f"../outputs/GPT2" + ("_NoPE" if nope else "") + f"/{experiment}/figures/multi_sys_trace/" + (f"{config.datasource}/" if config.datasource != "val" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens/" if config.irrelevant_tokens else "") + ("same_tokens/" if config.same_tokens else "") + ("paren_swap/" if config.paren_swap else "") + ("identical_haystack/" if config.identical_haystack else "") + (f"len_seg_haystack_{config.len_seg_haystack}/" if config.len_seg_haystack != 10 else "")   + ("fake_out/" if config.fake_out else "")
     os.makedirs(figure_dir, exist_ok=True)
     print(figure_dir + (f"late_start_{config.late_start}_" if config.late_start is not None else "") + ("abs_err_" if abs_err else "") + f"{valA}_train_conv_haystack_len_{haystack_len}_{timestamp}_logscale.pdf")
 
@@ -813,15 +836,20 @@ def haystack_plots_needle_full(config, haystack_len, output_dir, ckpt_step, step
 
     model_dir, experiment = split_path(output_dir)
     if ckpt_step is not None:
-        quartiles_file, seg_ext_quartiles_file, quartiles, seg_ext_quartiles = load_quartiles(config, model_dir, experiment, ckpt_step)
+        quartiles_file, seg_ext_quartiles_file, quartiles, seg_ext_quartiles = load_quartiles(config, model_dir, experiment, ckpt_step, haystack_len)
+
+
 
         if quartiles is None or seg_ext_quartiles is None or compute_more:
             print(f"\ncomputing quartiles for haystack_len: {haystack_len}")
 
             #get the err_lss_examples
             errs_dir = model_dir + experiment + f"/prediction_errors{config.C_dist}_step={ckpt_step}.ckpt"
-            errs_loc = errs_dir + f"/needle_haystack_len_{config.num_sys_haystack}_{config.datasource}_" + f"{config.val_dataset_typ}_state_dim_{config.nx}_"  + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("new_hay_insert_" if config.new_hay_insert else "")
-            seg_ext_errs_loc = errs_dir + f"/needle_haystack_len_{config.num_sys_haystack}_{config.datasource}_fin_seg_ext_" + f"{config.val_dataset_typ}_state_dim_{config.nx}_"  + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("new_hay_insert_" if config.new_hay_insert else "")
+            errs_loc = errs_dir + f"/needle_haystack_len_{config.num_sys_haystack}_{config.datasource}_" + f"{config.val_dataset_typ}_state_dim_{config.nx}_"  + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("new_hay_insert_" if config.new_hay_insert else "") + ("identical_haystack_" if config.identical_haystack else "")  + ("fake_out_" if config.fake_out else "")
+
+            seg_ext_errs_loc = errs_dir + f"/needle_haystack_len_{config.num_sys_haystack}_{config.datasource}_fin_seg_ext_" + f"{config.val_dataset_typ}_state_dim_{config.nx}_"  + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("new_hay_insert_" if config.new_hay_insert else "") + (f"len_seg_haystack_{config.len_seg_haystack}" if config.len_seg_haystack != 10 else "") + ("identical_haystack_" if config.identical_haystack else "") + ("fake_out_" if config.fake_out else "")
+
+            print(f"errs_loc: {errs_loc}")
 
             with open(errs_loc + "err_lss_examples.pkl", "rb") as f:
                 err_lss_examples = pickle.load(f)

@@ -1074,6 +1074,8 @@ def populate_val_traces_helper(config, trial, ys_trial, sys_choices=None, sys_di
 
     if sys_dict:
         context_len = config.n_positions + 1 #the length of the context
+        if config.fake_out:
+            context_len += config.len_seg_haystack - 1
 
         segments = np.zeros((context_len, config.ny + 2*config.max_sys_trace + 2)) #initialize the segments array
         segments[0, 2*config.max_sys_trace] = np.sqrt(2) #set the start token for the first segment
@@ -1117,6 +1119,8 @@ def populate_val_traces_helper(config, trial, ys_trial, sys_choices=None, sys_di
 
 
             else:
+                # if trial ==0:
+                #     print(f"sys {sys}, sys_choices {sys_choices}, sys_dict[sys], {sys_dict[sys]}")
                 start_paren, end_paren = special_tokens(segments, sys_dict[sys], style="zeros")
 
             if tok_seg_len == 0: #nothing
@@ -1130,24 +1134,37 @@ def populate_val_traces_helper(config, trial, ys_trial, sys_choices=None, sys_di
                 segments[seg_start:seg_start + tok_seg_len, :] = np.concatenate([start_paren, end_paren], axis=0) #add the segment to the segments array
             else:
             
-                segment = sys_trace_obs[next_start[sys]:next_start[sys] + seg_len, :] #get the segment from the next starting index to the next starting index plus the segment length
+                if config.identical_haystack and config.needle_in_haystack and count > 0 and count < (len(sys_choices) - 1):
+                    segment = last_segment #use the last segment again
+                else:
+                    segment = sys_trace_obs[next_start[sys]:next_start[sys] + seg_len, :] #get the segment from the next starting index to the next starting index plus the segment length
 
-                #concatenate 1 column of ones to the segment
-                ones = np.ones((segment.shape[0], 1))
-                segment = np.concatenate((ones, segment), axis=1)
-                #concatenate 2*max_sys_trace + 1 columns of zeros to the segment
-                zeros = np.zeros((segment.shape[0], 2*config.max_sys_trace + 1))
-                segment = np.concatenate((zeros, segment), axis=1)
-                
-                segment = np.concatenate([start_paren, segment, end_paren], axis=0)
+                    #concatenate 1 column of ones to the segment
+                    ones = np.ones((segment.shape[0], 1))
+                    segment = np.concatenate((ones, segment), axis=1)
+                    #concatenate 2*max_sys_trace + 1 columns of zeros to the segment
+                    zeros = np.zeros((segment.shape[0], 2*config.max_sys_trace + 1))
+                    segment = np.concatenate((zeros, segment), axis=1)
 
-                if seg_start + seg_len + 2 > context_len:
-                    #truncate the segment if it is too long so that it fits in the context
-                    segment = segment[:context_len - seg_start, :]
+                    if (not config.fake_out) or (tok_seg_len > config.len_seg_haystack+1):
+                        segment = np.concatenate([start_paren, segment, end_paren], axis=0)
+
+                    elif config.fake_out and tok_seg_len == config.len_seg_haystack + 1:
+                        segment =  np.concatenate([start_paren, segment], axis=0)
+                    
+
+
+                    if seg_start + seg_len + 2 > context_len:
+                        #truncate the segment if it is too long so that it fits in the context
+                        segment = segment[:context_len - seg_start, :]
+
+                    # print(f"seg_start {seg_start}, tok_seg_len {tok_seg_len}")
 
                 segments[seg_start:seg_start + tok_seg_len, :] = segment #add the segment to the segments array
+                last_segment = segment
                 
-                next_start[sys] += seg_len #update the next starting index for the trace from this system index
+                if config.identical_haystack and config.needle_in_haystack and count > 0 and count < (len(sys_choices) - 1):
+                    next_start[sys] += seg_len #update the next starting index for the trace from this system index
 
             if seg_start + tok_seg_len == context_len:
                 break
@@ -1185,9 +1202,14 @@ def populate_val_traces(config, trace_conf, trial, num_tasks, entries, sys_choic
     if trial == 0: #if this is the leader trace that sets the system indices, starting indices, and token segment lengths
         if trace_conf > 0 and config.needle_in_haystack:
             haystack = sys_choices[:-1] #get the haystack from the previous trial
+            print(f"haystack: {haystack}")
             new_haystack = cycle_list(haystack, 1) #cycle the haystack to the left by 1
+            print(f"new_haystack {new_haystack}")
             sys_choices = new_haystack + [sys_choices[-1]] #set the new system choices
+            print(f"sys_choices: {sys_choices}, sys_dict {sys_dict}")
             segments, sys_choices, sys_dict, tok_seg_lens, real_seg_lens = populate_val_traces_helper(config, trial, ys_trial, sys_choices=sys_choices, sys_dict=sys_dict, tok_seg_lens=tok_seg_lens, real_seg_lens=real_seg_lens, seg_starts=seg_starts, sim_objs=sim_objs)
+            # if len(sys_choices) > 2:
+            #     raise Exception()
 
         else:
             segments, sys_choices, sys_dict, tok_seg_lens, seg_starts, real_seg_lens, sys_inds = populate_traces(config, num_tasks, ys_trial, test=True, train_conv=train_conv, trace_conf=trace_conf, example=ex, sim_objs=sim_objs) #populate the traces for the first trial
@@ -1763,12 +1785,12 @@ def compute_errors_needle(config, model, ys, sim_objs, errs_dir, errs_loc, ex=No
         seg_count = 0
         for seg_start in seg_starts_per_config[trace_config]: #loop over the starting indices of the segments
             #set the errors of the end of the segment to be infinite
-            
             if real_seg_lens_per_config[trace_config][seg_count] < tok_seg_lens_per_config[trace_config][seg_count] - 1:
                 errs_tf[trace_config, :, seg_start + tok_seg_lens_per_config[trace_config][seg_count] - 1] = np.inf
             if seg_start + tok_seg_lens_per_config[trace_config][seg_count] <= config.n_positions:
                 errs_tf[trace_config, :, seg_start + tok_seg_lens_per_config[trace_config][seg_count]] = np.inf
             seg_count += 1
+        raise Exception
 
 
     err_lss["MOP"] = errs_tf
@@ -1869,13 +1891,18 @@ def compute_errors_needle_or_multi_cut(config, model, sim_objs, errs_dir, errs_l
 
         if config.needle_final_seg_extended:
             interleaving += f"_needle_final_seg_extended"
+
+        if config.len_seg_haystack != 10:
+            interleaving += f"_haystack_seg_len_{config.len_seg_haystack}"
+        if config.fake_out:
+            interleaving += "_fake_out"
     else:
         interleaving = f"multi_cut"
 
     #load multi_sys_ys from interleaved_traces file
     # interleave_traces_dict_path = os.path.join(f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/{dataset_typ}/" + f"{config.datasource}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + f"interleaved_traces_{dataset_typ}{config.C_dist}_{interleaving}.pkl")
 
-    interleave_traces_dict_path = os.path.join(f"{os.environ.get("BASE_PATH")}train_and_test_data/{config.dataset_typ}/" + f"{config.datasource}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
+    interleave_traces_dict_path = os.path.join(f"{os.environ.get('BASE_PATH')}train_and_test_data/{config.dataset_typ}/" + f"{config.datasource}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "")+ ("identical_haystack_" if config.identical_haystack else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
 
     with open(interleave_traces_dict_path, "rb") as f:
         interleave_traces_dict = pickle.load(f)
@@ -1918,11 +1945,12 @@ def compute_errors_needle_or_multi_cut(config, model, sim_objs, errs_dir, errs_l
         seg_count = 0
         for seg_start in seg_starts_all_ex[0][trace_config]: #loop over the starting indices of the segments
             #set the errors of the end of the segment to be infinite
-            
-            if real_seg_lens_all_ex[0][trace_config][seg_count] < tok_seg_lens_all_ex[0][trace_config][seg_count] - 1:
-                errs_tf[:, trace_config, :, seg_start + tok_seg_lens_all_ex[0][trace_config][seg_count] - 1] = np.inf
-            if seg_start + tok_seg_lens_all_ex[0][trace_config][seg_count] <= config.n_positions:
-                errs_tf[:, trace_config, :, seg_start + tok_seg_lens_all_ex[0][trace_config][seg_count]] = np.inf
+            # print(f"seg_count {seg_count}, seg_start {seg_start} len(seg_starts_all_ex[0][trace_config]) - 1 {len(seg_starts_all_ex[0][trace_config]) - 2}")
+            if (not config.fake_out) or seg_count < len(seg_starts_all_ex[0][trace_config]) - 2:
+                if real_seg_lens_all_ex[0][trace_config][seg_count] < tok_seg_lens_all_ex[0][trace_config][seg_count] - 1:
+                    errs_tf[:, trace_config, :, seg_start + tok_seg_lens_all_ex[0][trace_config][seg_count] - 1] = np.inf
+                if seg_start + tok_seg_lens_all_ex[0][trace_config][seg_count] <= config.n_positions:
+                    errs_tf[:, trace_config, :, seg_start + tok_seg_lens_all_ex[0][trace_config][seg_count]] = np.inf
             seg_count += 1
 
 
@@ -2028,6 +2056,9 @@ def interleave_traces(config, ys, num_test_traces_configs, num_trials, ex=None, 
     if config.datasource == "backstory_train":
         multi_sys_ys_context_len += config.backstory_len*min(config.num_sys_haystack,10)
 
+    if config.fake_out:
+        multi_sys_ys_context_len += config.len_seg_haystack - 1
+
     multi_sys_ys = np.zeros((num_test_traces_configs, num_trials, multi_sys_ys_context_len, config.ny + 2*config.max_sys_trace + 2)).astype(np.float32) #set up the array to hold the test traces
         
 
@@ -2068,7 +2099,7 @@ def needle_in_haystack_preds(config, model, ckpt_steps, parent_parent_dir, errs_
     print(f"config.num_haystack_examples: {config.num_haystack_examples}")
 
     save_errs_dir = parent_parent_dir + f"/prediction_errors" + ("_spec_C" if config.needle_in_haystack and config.datasource == "train_systems" and config.multi_sys_trace else f"{config.C_dist}") + f"_step={ckpt_steps}.ckpt"
-    save_errs_loc = errs_dir + f"/" + ("single_system_" if config.single_system else "") + ("train_conv_" if train_conv else "")+ ("zero_cut_" if config.zero_cut else "") + (f"needle_haystack_len_{config.num_sys_haystack}_{config.datasource}_" if config.needle_in_haystack else f"mult_cut_{config.datasource}_") + ("fin_seg_ext_" if config.needle_in_haystack and config.needle_final_seg_extended else "") + f"{config.val_dataset_typ}_state_dim_{config.nx}_" + ("new_hay_insert_" if config.new_hay_insert else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("paren_swap_" if config.paren_swap else "") 
+    save_errs_loc = errs_dir + f"/" + ("single_system_" if config.single_system else "") + ("train_conv_" if train_conv else "")+ ("zero_cut_" if config.zero_cut else "") + (f"needle_haystack_len_{config.num_sys_haystack}_{config.datasource}_" if config.needle_in_haystack else f"mult_cut_{config.datasource}_") + ("fin_seg_ext_" if config.needle_in_haystack and config.needle_final_seg_extended else "") + f"{config.val_dataset_typ}_state_dim_{config.nx}_" + ("new_hay_insert_" if config.new_hay_insert else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("paren_swap_" if config.paren_swap else "") + (f"len_seg_haystack_{config.len_seg_haystack}" if config.len_seg_haystack != 10 else "")+ ("identical_haystack_" if config.identical_haystack else "")  + ("fake_out_" if config.fake_out else "")
     
 
     err_lss_all = {}
@@ -2187,7 +2218,7 @@ def save_preds(run_deg_kf_test, config, model, train_conv, tf, ys, sim_objs, out
     print("ckpt_steps:", ckpt_steps)
 
     errs_dir = parent_parent_dir + f"/prediction_errors{config.C_dist}_step={ckpt_steps}.ckpt"
-    errs_loc = errs_dir + f"/" + ("single_system_" if config.single_system else "") + ("zero_cut_" if config.zero_cut else "") + (f"needle_haystack_len_{config.num_sys_haystack}_{config.datasource}_" if config.needle_in_haystack else "") + ("fin_seg_ext_" if config.needle_in_haystack and config.needle_final_seg_extended else "") + f"{config.val_dataset_typ}_state_dim_{config.nx}_"
+    errs_loc = errs_dir + f"/" + ("single_system_" if config.single_system else "") + ("zero_cut_" if config.zero_cut else "") + (f"needle_haystack_len_{config.num_sys_haystack}_{config.datasource}_" if config.needle_in_haystack else "") + ("fin_seg_ext_" if config.needle_in_haystack and config.needle_final_seg_extended else "") + f"{config.val_dataset_typ}_state_dim_{config.nx}_" + (f"len_seg_haystack_{config.len_seg_haystack}" if config.len_seg_haystack != 10 else "") + ("identical_haystack_" if config.identical_haystack else "")  + ("fake_out_" if config.fake_out else "")
 
     os.makedirs(errs_dir, exist_ok=True)
 

@@ -141,6 +141,7 @@ def populate_traces(config, num_tasks, entries, test=False, train_conv=False, tr
 
     context_len = config.n_positions + 1 #the length of the context is the number of positions plus 1 for the start token
 
+
     # if not test and config.mem_suppress:
     #     context_len -= config.mask_budget*config.backstory_len #subtract the maximum number of indices that will be masked from the context length
 
@@ -323,23 +324,27 @@ def populate_traces(config, num_tasks, entries, test=False, train_conv=False, tr
             seg_count += 1
             continue
         else:
+            if test and config.identical_haystack and config.needle_in_haystack and seg_count > 0 and seg_count < (len(seg_lens) - 1):
+                segment = last_segment #use the last segment again
 
-            if next_start[sys_ind] + seg_len > sys_trace_obs.shape[0]: #if the next starting index plus the segment length is greater than the length of the trace
-                if next_start[sys_ind] >= sys_trace_obs.shape[0]: #if the next starting index is greater than the length of the trace, skip to the next trace
-                    continue
-                else:
-                    segment = sys_trace_obs[next_start[sys_ind]:, :] #get the segment from the next starting index to the end of the trace
-                    seg_len = segment.shape[0] #update the segment length to the length of the segment
             else:
-                segment = sys_trace_obs[next_start[sys_ind]:next_start[sys_ind] + seg_len, :] #get the segment from the next starting index to the next starting index plus the segment length
+                if next_start[sys_ind] + seg_len > sys_trace_obs.shape[0]: #if the next starting index plus the segment length is greater than the length of the trace
+                    if next_start[sys_ind] >= sys_trace_obs.shape[0]: #if the next starting index is greater than the length of the trace, skip to the next trace
+                        continue
+                    else:
+                        segment = sys_trace_obs[next_start[sys_ind]:, :] #get the segment from the next starting index to the end of the trace
+                        seg_len = segment.shape[0] #update the segment length to the length of the segment
+                else:
+                    segment = sys_trace_obs[next_start[sys_ind]:next_start[sys_ind] + seg_len, :] #get the segment from the next starting index to the next starting index plus the segment length
 
-            # concatenate 1 columns of ones to the segment
-            ones = np.ones((segment.shape[0], 1))
-            segment = np.concatenate((ones, segment), axis=1)
-        
-            # concatenate 2*config.max_sys_trace + 1 columns of zeros to the segment
-            zeros = np.zeros((segment.shape[0], 2*config.max_sys_trace + 1))
-            segment = np.concatenate((zeros, segment), axis=1)
+                # concatenate 1 columns of ones to the segment
+                ones = np.ones((segment.shape[0], 1))
+                segment = np.concatenate((ones, segment), axis=1)
+            
+                # concatenate 2*config.max_sys_trace + 1 columns of zeros to the segment
+                zeros = np.zeros((segment.shape[0], 2*config.max_sys_trace + 1))
+                segment = np.concatenate((zeros, segment), axis=1)
+                last_segment = segment
 
             if test and config.needle_in_haystack and config.paren_swap and len(seg_starts) == config.num_sys_haystack + 1: #swap open token for query experiment
 
@@ -376,7 +381,8 @@ def populate_traces(config, num_tasks, entries, test=False, train_conv=False, tr
 
             segments[seg_start:seg_start + tok_seg_len, :] = segment #add the segment to the segments array
 
-            next_start[sys_ind] += seg_len #update the next starting index for the trace from this system index 
+            if not(test and config.identical_haystack and config.needle_in_haystack and seg_count > 0 and seg_count < len(seg_lens) - 1):
+                next_start[sys_ind] += seg_len #update the next starting index for the trace from this system index 
 
             if seg_start + tok_seg_len == context_len:
                 break
@@ -393,7 +399,48 @@ def populate_traces(config, num_tasks, entries, test=False, train_conv=False, tr
         segments, mask_idx = add_backstories(config, sim_objs, segments, mask_idx, sys_appear, sys_choices, seg_starts, real_seg_lens)
 
         seg_starts = orig_seg_starts
+
+    if test and config.needle_in_haystack and config.fake_out:
+        # print(f"tok_seg_lens before fake_out {tok_seg_lens}")
+        seg_start += 11 #start where the close paren of the test segment would have been 
+        # print(f"fake out seg_start: {seg_start}")
+        seg_starts.append(seg_start)
+        tok_seg_lens[-1] -= 1 #remove close paren of test segment from count
+        seg_len = 10 #fake out seg len
+        tok_seg_len = seg_len
+        seg_lens.append(seg_len) 
+        tok_seg_lens.append(tok_seg_len)
+        real_seg_lens.append(seg_len)
         
+        # print(f"segments.shape before fake out: {segments.shape}")
+        sys_ind = sys_inds[5] #get 5th system in the haystack
+        # print(f"sys_choices: {sys_choices}\n sys_ind: {sys_ind}")
+        sys_trace_obs[sys_ind]
+        sys_choices.append(sys_ind) #add the system index to the list of system choices
+        sys_trace_obs = entries[sys_ind]
+        segment = sys_trace_obs[next_start[sys_ind]:next_start[sys_ind] + seg_len, :] #get the segment from the next starting index to the next starting index plus the segment length
+
+        # concatenate 1 columns of ones to the segment
+        ones = np.ones((segment.shape[0], 1))
+        segment = np.concatenate((ones, segment), axis=1)
+    
+        # concatenate 2*config.max_sys_trace + 1 columns of zeros to the segment
+        zeros = np.zeros((segment.shape[0], 2*config.max_sys_trace + 1))
+        segment = np.concatenate((zeros, segment), axis=1)
+        # print_matrix(segment, "segment")
+
+        fake_out_space = np.zeros((tok_seg_len - 1, segment.shape[1]))
+        # print(f"shape of fake_out_space {fake_out_space.shape}")
+        segments = np.concatenate((segments, fake_out_space))
+        # print(f"shape of segments {segments.shape}")
+
+        segments[seg_start:seg_start + tok_seg_len, :] = segment #add the segment to the segments array
+
+        # print_matrix(segments[seg_start:seg_start + tok_seg_len, :], "segments[seg_start:seg_start + tok_seg_len, :]")
+
+        # print(f"sum of tok_seg_lens: {sum(tok_seg_lens)}, context_len {context_len}")
+        print(f"sys_choices: {sys_choices}, tok_seg_lens: {tok_seg_lens}, seg_starts: {seg_starts}")
+        # raise Exception(f"print final_segments {print_matrix(segments, 'final segments')}")
     return segments, sys_choices, sys_dict, tok_seg_lens, seg_starts, real_seg_lens, sys_inds
 
 
@@ -477,7 +524,7 @@ class FilterDataset(Dataset):
         self.use_true_len = use_true_len
         if config.mem_suppress:
             #load the sim_objs
-            with open(f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/{config.val_dataset_typ}/train_{config.val_dataset_typ}{config.C_dist}_state_dim_{config.nx}_sim_objs.pkl", "rb") as f:
+            with open(f"{os.environ.get('BASE_PATH')}train_and_test_data/{config.val_dataset_typ}/train_{config.val_dataset_typ}{config.C_dist}_state_dim_{config.nx}_sim_objs.pkl", "rb") as f:
                 sim_objs = pickle.load(f)
                 self.sim_objs = sim_objs
 
@@ -509,10 +556,6 @@ class FilterDataset(Dataset):
         
 
     def __getitem__(self, idx):
-
-        print(f"RSS before first batch: {psutil.Process(os.getpid()).memory_info().rss/1e9:.2f} GB", flush=True)
-
-        # raise Exception("checking filter_dataset __getitem__")
 
         if config.multi_sys_trace:
             segments, sys_choices, sys_dict, seg_lens, seg_starts, real_seg_lens, sys_inds = populate_traces(config, config.num_tasks, self.entries, sim_objs=self.sim_objs)

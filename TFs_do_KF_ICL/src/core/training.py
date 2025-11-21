@@ -38,7 +38,7 @@ def setup_train(model, train_mix_dist=False, train_mix_state_dim=False):
         output_dir = '../outputs/' + identifier + experiment_name
 
         #for BLISS server 
-        ckpt_dir = f"{os.environ.get("BASE_PATH")}model_checkpoints/" + identifier + experiment_name
+        ckpt_dir = f"{os.environ.get('BASE_PATH')}model_checkpoints/" + identifier + experiment_name
 
 
         if not os.path.isdir(output_dir):

@@ -1,0 +1,2 @@
+position: 0, step: 1, value: 0.03482423536479473
+position: 0, step: 1, value: 0.03482423536479473

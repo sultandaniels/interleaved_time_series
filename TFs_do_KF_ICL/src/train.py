@@ -90,7 +90,7 @@ def train_gpt2(model, config, ckpt_dir, train_mix_dist=False, train_mix_state_di
     # )
 
     wandb_logger = WandbLogger(log_model="all")
-    slurm_plugin = None if os.environ.get("LOCAL_RANK") is not None else SLURMEnvironment(requeue_signal=signal.SIGUSR1)
+    # slurm_plugin = None if os.environ.get("LOCAL_RANK") is not None else SLURMEnvironment(requeue_signal=signal.SIGUSR1)
     # profiler = SimpleProfiler(dirpath=".", filename="perf_logs")
 
 #     profiler = PyTorchProfiler(
@@ -102,7 +102,7 @@ def train_gpt2(model, config, ckpt_dir, train_mix_dist=False, train_mix_state_di
 # )
     trainer = pl.Trainer(
         fast_dev_run=False,
-        plugins=[slurm_plugin] if slurm_plugin else None,
+        # plugins=[slurm_plugin] if slurm_plugin else None,
         # profiler=profiler,
         enable_progress_bar=False,
         accelerator="gpu",
@@ -118,9 +118,9 @@ def train_gpt2(model, config, ckpt_dir, train_mix_dist=False, train_mix_state_di
         max_steps=-1 if config.use_true_len else config.train_steps,
         accumulate_grad_batches=config.acc_grad_batch,
         # max_epochs=config.num_epochs,
-        # strategy=DDPStrategy(find_unused_parameters=True)
+        strategy=DDPStrategy(find_unused_parameters=True)
         # strategy=DDPStrategy(gradient_as_bucket_view=False, static_graph=True) #gradient_as_bucket_view might help with memory usage
-        strategy="single_device"
+        # strategy="single_device"
     )
 
     if config.learning_rate == 0.0:

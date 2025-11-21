@@ -9,6 +9,8 @@ from models import GPT2
 from dyn_models.ortho_sync_data import gen_ortho_sync_data
 import argparse
 
+os.environ["BASE_PATH"] = "/data/shared/ICL_Kalman_Experiments/"
+
 def mix_ind(i, total_number, labels, counts, max_ind=2):
     #currently function only works for 
     if int(np.floor(len(labels)*i/total_number)) > max_ind:
@@ -213,4 +215,4 @@ if __name__ == "__main__":
 
     config = Config()
     
-    collect_data(config, "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/ortho_haar", only, train_mix_dist, opposite_ortho=opposite_ortho)
+    collect_data(config, f"{os.environ.get('BASE_PATH')}train_and_test_data/ortho_haar", only, train_mix_dist, opposite_ortho=opposite_ortho)
