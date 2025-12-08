@@ -1068,7 +1068,7 @@ def compute_errors_conv(config):
 
     return err_lss, irreducible_error
 
-def populate_val_traces_helper(config, trial, ys_trial, sys_choices=None, sys_dict=None, tok_seg_lens=None, real_seg_lens=None, seg_starts=None, sim_objs=None):
+def populate_val_traces_helper(config, trial, ys_trial, sys_choices=None, sys_dict=None, tok_seg_lens=None, real_seg_lens=None, seg_starts=None, sim_objs=None, needle_sys=None):
 
     # a function to populate the validation traces
 
@@ -1090,7 +1090,10 @@ def populate_val_traces_helper(config, trial, ys_trial, sys_choices=None, sys_di
         seg_start = 1
         count = 0
         for sys in sys_choices:
-            sys_trace_obs = ys_trial[sys]
+            if config.needle_in_haystack and config.identical_haystack:
+                sys_trace_obs = ys_trial[needle_sys]
+            else:
+                sys_trace_obs = ys_trial[sys]
 
             tok_seg_len = tok_seg_lens[count]
             seg_len = real_seg_lens[count]
@@ -1119,8 +1122,6 @@ def populate_val_traces_helper(config, trial, ys_trial, sys_choices=None, sys_di
 
 
             else:
-                # if trial ==0:
-                #     print(f"sys {sys}, sys_choices {sys_choices}, sys_dict[sys], {sys_dict[sys]}")
                 start_paren, end_paren = special_tokens(segments, sys_dict[sys], style="zeros")
 
             if tok_seg_len == 0: #nothing
@@ -1135,9 +1136,12 @@ def populate_val_traces_helper(config, trial, ys_trial, sys_choices=None, sys_di
             else:
             
                 if config.identical_haystack and config.needle_in_haystack and count > 0 and count < (len(sys_choices) - 1):
+                    # print("using last segment")
                     segment = last_segment #use the last segment again
                 else:
+                    # print(f"next_start[{sys}] before update: {next_start[sys]}")
                     segment = sys_trace_obs[next_start[sys]:next_start[sys] + seg_len, :] #get the segment from the next starting index to the next starting index plus the segment length
+                    
 
                     #concatenate 1 column of ones to the segment
                     ones = np.ones((segment.shape[0], 1))
@@ -1146,25 +1150,29 @@ def populate_val_traces_helper(config, trial, ys_trial, sys_choices=None, sys_di
                     zeros = np.zeros((segment.shape[0], 2*config.max_sys_trace + 1))
                     segment = np.concatenate((zeros, segment), axis=1)
 
-                    if (not config.fake_out) or (tok_seg_len > config.len_seg_haystack+1):
-                        segment = np.concatenate([start_paren, segment, end_paren], axis=0)
 
-                    elif config.fake_out and tok_seg_len == config.len_seg_haystack + 1:
-                        segment =  np.concatenate([start_paren, segment], axis=0)
-                    
+                    last_segment = segment
 
+                if (not config.fake_out) or (tok_seg_len > config.len_seg_haystack+1):
+                    segment = np.concatenate([start_paren, segment, end_paren], axis=0)
 
-                    if seg_start + seg_len + 2 > context_len:
-                        #truncate the segment if it is too long so that it fits in the context
-                        segment = segment[:context_len - seg_start, :]
-
-                    # print(f"seg_start {seg_start}, tok_seg_len {tok_seg_len}")
-
-                segments[seg_start:seg_start + tok_seg_len, :] = segment #add the segment to the segments array
-                last_segment = segment
+                elif config.fake_out and tok_seg_len == config.len_seg_haystack + 1:
+                    segment =  np.concatenate([start_paren, segment], axis=0)
                 
-                if config.identical_haystack and config.needle_in_haystack and count > 0 and count < (len(sys_choices) - 1):
-                    next_start[sys] += seg_len #update the next starting index for the trace from this system index
+
+
+                if seg_start + seg_len + 2 > context_len:
+                    #truncate the segment if it is too long so that it fits in the context
+                    segment = segment[:context_len - seg_start, :]
+
+                # print(f"seg_start {seg_start}, tok_seg_len {tok_seg_len}")
+
+                # print(f"segment[:5]: {segment[-10, -3:]}")
+                segments[seg_start:seg_start + tok_seg_len, :] = segment #add the segment to the segments array
+                
+                if not(config.identical_haystack and config.needle_in_haystack and count > 0 and count < (len(sys_choices) - 1)):
+                    next_start[needle_sys] += seg_len #update the next starting index for the trace from this system index
+                    # print(f"next_start[{sys}] after update: {next_start[sys]}")
 
             if seg_start + tok_seg_len == context_len:
                 break
@@ -1176,7 +1184,7 @@ def populate_val_traces_helper(config, trial, ys_trial, sys_choices=None, sys_di
         if trial == 0:
             raise ValueError(f"first conditional malfunction since trial = {trial}")
         else:
-            raise ValueError(f"sys_dict is {sys_dict} when trial is {trial}")\
+            raise ValueError(f"sys_dict is {sys_dict} when trial is {trial}")
 
 
 
@@ -1199,22 +1207,24 @@ def populate_val_traces(config, trace_conf, trial, num_tasks, entries, sys_choic
 
     ys_trial = entries[:, trial] #get the observations for the first trial
 
+
+    if sys_choices is not None:
+        needle_sys = sys_choices[-1] #get the needle system from the previous trial
+
     if trial == 0: #if this is the leader trace that sets the system indices, starting indices, and token segment lengths
         if trace_conf > 0 and config.needle_in_haystack:
             haystack = sys_choices[:-1] #get the haystack from the previous trial
-            print(f"haystack: {haystack}")
+            # print(f"haystack: {haystack}")
             new_haystack = cycle_list(haystack, 1) #cycle the haystack to the left by 1
-            print(f"new_haystack {new_haystack}")
+            # print(f"new_haystack {new_haystack}")
             sys_choices = new_haystack + [sys_choices[-1]] #set the new system choices
-            print(f"sys_choices: {sys_choices}, sys_dict {sys_dict}")
-            segments, sys_choices, sys_dict, tok_seg_lens, real_seg_lens = populate_val_traces_helper(config, trial, ys_trial, sys_choices=sys_choices, sys_dict=sys_dict, tok_seg_lens=tok_seg_lens, real_seg_lens=real_seg_lens, seg_starts=seg_starts, sim_objs=sim_objs)
-            # if len(sys_choices) > 2:
-            #     raise Exception()
+            # print(f"sys_choices: {sys_choices}, sys_dict {sys_dict}")
+            segments, sys_choices, sys_dict, tok_seg_lens, real_seg_lens = populate_val_traces_helper(config, trial, ys_trial, sys_choices=sys_choices, sys_dict=sys_dict, tok_seg_lens=tok_seg_lens, real_seg_lens=real_seg_lens, seg_starts=seg_starts, sim_objs=sim_objs, needle_sys=needle_sys)
 
         else:
             segments, sys_choices, sys_dict, tok_seg_lens, seg_starts, real_seg_lens, sys_inds = populate_traces(config, num_tasks, ys_trial, test=True, train_conv=train_conv, trace_conf=trace_conf, example=ex, sim_objs=sim_objs) #populate the traces for the first trial
     else:
-        segments, sys_choices, sys_dict, tok_seg_lens, real_seg_lens = populate_val_traces_helper(config, trial, ys_trial, sys_choices=sys_choices, sys_dict=sys_dict, tok_seg_lens=tok_seg_lens, real_seg_lens=real_seg_lens, seg_starts=seg_starts, sim_objs=sim_objs)
+        segments, sys_choices, sys_dict, tok_seg_lens, real_seg_lens = populate_val_traces_helper(config, trial, ys_trial, sys_choices=sys_choices, sys_dict=sys_dict, tok_seg_lens=tok_seg_lens, real_seg_lens=real_seg_lens, seg_starts=seg_starts, sim_objs=sim_objs, needle_sys=needle_sys)
   
     return segments, sys_choices, sys_dict, tok_seg_lens, seg_starts, real_seg_lens, sys_inds
 
@@ -1938,6 +1948,7 @@ def compute_errors_needle_or_multi_cut(config, model, sim_objs, errs_dir, errs_l
     print(f"multi_sys_ys_true shape: {multi_sys_ys_true.shape}")
 
     errs_tf = np.linalg.norm((multi_sys_ys_true - preds_tf), axis=-1) ** 2  # get the errors of transformer predictions
+    print(f"tok_seg_lens_all_ex[0] shape: {np.array(tok_seg_lens_all_ex[0])}")
     for trace_config in range(errs_tf.shape[1]):
         #set the errors for the start token to be infinite
         errs_tf[:, trace_config, :, 0] = np.inf
@@ -1950,6 +1961,8 @@ def compute_errors_needle_or_multi_cut(config, model, sim_objs, errs_dir, errs_l
                 if real_seg_lens_all_ex[0][trace_config][seg_count] < tok_seg_lens_all_ex[0][trace_config][seg_count] - 1:
                     errs_tf[:, trace_config, :, seg_start + tok_seg_lens_all_ex[0][trace_config][seg_count] - 1] = np.inf
                 if seg_start + tok_seg_lens_all_ex[0][trace_config][seg_count] <= config.n_positions:
+                    print(f"Setting inf at seg_start + tok_seg_lens: {seg_start + tok_seg_lens_all_ex[0][trace_config][seg_count]}")
+                    print(f"errs_tf shape: {errs_tf.shape}")
                     errs_tf[:, trace_config, :, seg_start + tok_seg_lens_all_ex[0][trace_config][seg_count]] = np.inf
             seg_count += 1
 

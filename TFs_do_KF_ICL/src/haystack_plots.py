@@ -30,9 +30,6 @@ def comp_quartiles(config, err_lss_examples, ratio=False, train_conv=False, kal_
                 rat = err_lss_examples[key] / kal_err
             else:
                 rat = err_lss_examples[key]
-                if config.fake_out:
-                    print(f"rat.shape {rat.shape}")
-                    raise Exception(f"rat {rat[0,0,0,128:135]}")
 
             print(f"rat shape: {rat.shape}")
             num_sys_ex = rat.shape[0]
@@ -92,10 +89,10 @@ def plot_needle_position(config, experiment, datasource, state_dim, ckpt_step, v
 
     print(f"real_steps: {real_steps}, real_steps_ext: {real_steps_ext}")
 
-
+    dithers = np.linspace(-0.02, 0.02, len(steps_in))
     for needle in range(haystack_len):
         key_count = 0
-        for key in quartiles.keys():
+        for key in ["MOP"]:
 
             if "OLS" not in key and "Simulation" not in key:
                 # ax[needle].scatter(quartiles[key][1, needle], label=key)
@@ -129,24 +126,24 @@ def plot_needle_position(config, experiment, datasource, state_dim, ckpt_step, v
                             )
                     else:
                         if key == "Zero":
-                            color = colors[1]
+                            color = colors[5]
                         elif step == 1:
                             color = colors[0]
                         elif step == 2:
-                            color = colors[2]
+                            color = colors[1]
                         elif step == 8:
                             color = colors[3]
                         elif step == 3:
-                            color = colors[4]
+                            color = colors[2]
                         elif step == 7:
                             color = colors[5]
                             
                         ax.errorbar(
-                        haystack_len - needle - 1,
+                        haystack_len - needle - 1 + dithers[step_count],
                         y,
                         yerr=yerr,  # Convert yerr to a (2, n) array-like structure
                         fmt='o',
-                        label=((f"{key_label}" + (f": {step} After Open" if key == "MOP" else "")) if (needle == 0 and key == "MOP") or (needle == 0 and step == 1) else "_nolegend_"),
+                        label=(((f"{step} after query" if key == "MOP" else "")) if (needle == 0 and key == "MOP") or (needle == 0 and step == 1) else "_nolegend_"),
                         capsize=5,
                         zorder=haystack_len if key == "MOP" else 0, color=color,
                         linewidth=2
@@ -157,7 +154,7 @@ def plot_needle_position(config, experiment, datasource, state_dim, ckpt_step, v
                 key_count += 1
 
     key_count = 0
-    for key in seg_ext_quartiles.keys():
+    for key in ["MOP"]:
         if "OLS" not in key and "Simulation" not in key:
             step_count = 0
             for step in steps_in:
@@ -184,19 +181,19 @@ def plot_needle_position(config, experiment, datasource, state_dim, ckpt_step, v
                     )
                 else:
                     if key == "Zero":
-                        color = colors[1]
+                        color = colors[5]
                     elif step == 1:
                         color = colors[0]
                     elif step == 2:
-                        color = colors[2]
+                        color = colors[1]
                     elif step == 8:
                         color = colors[3]
                     elif step == 3:
-                        color = colors[4]
+                        color = colors[2]
                     elif step == 7:
                         color = colors[5]
                     ax.errorbar(
-                        -2 + step_count*0.02,
+                        -2 + dithers[step_count],
                         y,
                         yerr=yerr,  # Convert yerr to a (2, n) array-like structure
                         fmt='o',
@@ -218,7 +215,7 @@ def plot_needle_position(config, experiment, datasource, state_dim, ckpt_step, v
                     #set the grid to be on integer values for x-axis
                     ax.set_xticks(np.arange(-2, haystack_len, 1))
                     ax.set_yscale('log')
-                    ax.set_ylim(1e-4, 2)
+                    ax.set_ylim(1e-3, 1e-1)
                     ax.tick_params(axis='x', which='both', labelbottom=True, labelsize=12)
 
                 step_count += 1
@@ -238,7 +235,7 @@ def plot_needle_position(config, experiment, datasource, state_dim, ckpt_step, v
 
                     ax[step_count].legend(fontsize = 10, ncol=5, columnspacing=0.4, handletextpad=0.25, loc="lower left") #, loc="upper left")
                     ax[step_count].set_xlabel("Needle Position from the End of the Haystack", fontsize=12, fontname="Liberation Serif")
-                    ax[step_count].set_ylabel("Error" + (" Ratio - 1" if valA == "gaussA" else "") + f": {step} After Open", fontsize=12)
+                    ax[step_count].set_ylabel("Error" + (" Ratio - 1" if valA == "gaussA" else "") + f": {step} after query", fontsize=12)
                     ax[step_count].set_xlim(-3, haystack_len)
                     ax[step_count].grid(True)
                     ax[step_count].minorticks_on()
@@ -376,6 +373,7 @@ def plot_steps_after_open_token(config, haystack_len, quartiles, seg_ext_quartil
 
 def compute_quartiles_ckpt(config, model_name, steps_in, model_dir, experiment, kal_ckpt, haystack_len, ckpt_steps, train_conv_fin_quartiles_file, train_conv_beg_quartiles_file, x_values_file, abs_err=False):
 
+
     OLS_errs = None
     nope = not config.use_pos_emb
 
@@ -494,40 +492,45 @@ def compute_quartiles_ckpt(config, model_name, steps_in, model_dir, experiment, 
                 beg_seg_start = seg_starts_per_conf[needle][0]
                 for step in steps_in:
                     if config.fake_out:
-                        step -= 1
+                        fin_seg_start -= 1
                     for key in ["MOP"]: #, "OLS_ir_1", "OLS_ir_2", "OLS_ir_3", "OLS_analytical_ir_1", "OLS_analytical_ir_2", "OLS_analytical_ir_3"]:
                         if key not in  ["Zero", "Analytical_Simulation", "Kalman_rem", "Kalman", "Analytical_Kalman"]:
                             
-                            y = quartiles[key][1, needle, fin_seg_start + step]
+                            # y = quartiles[key][1, needle, fin_seg_start + step]
                             
-                            y_err = [
-                                [quartiles[key][1, needle, fin_seg_start + step] - quartiles[key][0, needle, fin_seg_start + step]],
-                                [quartiles[key][2, needle, fin_seg_start + step] - quartiles[key][1, needle, fin_seg_start + step]]
-                            ]
+                            # y_err = [
+                            #     [quartiles[key][1, needle, fin_seg_start + step] - quartiles[key][0, needle, fin_seg_start + step]],
+                            #     [quartiles[key][2, needle, fin_seg_start + step] - quartiles[key][1, needle, fin_seg_start + step]]
+                            # ]
 
-                            print(f"step: {step}, ys {ys}, fin_seg_start {fin_seg_start}, quartiles[key].shape {quartiles[key].shape}")
+                            # print(f"step: {step}, ys {ys}, fin_seg_start {fin_seg_start}, quartiles[key].shape {quartiles[key].shape}")
+
+                            print(f"\n\n\nstep: {step}, fin_quartiles.keys() {fin_quartiles_ckpt.keys()}")
 
                             if needle == 0:
                                 if len(pred_ckpts) == 0:
                                     if step == 1 or (config.fake_out and step == 0):
-                                        ys[key] = {}
-                                        y_errs[key] = {}
+                                        # ys[key] = {}
+                                        # y_errs[key] = {}
                                         fin_quartiles_ckpt[key] = {}
                                         beg_quartiles_ckpt[key] = {}
 
                                     # ys[key][step] = [y]
                                     # y_errs[key][step] = [y_err]
-                                    raise Exception(f"quartiles['MOP'][:,needle, 128:135] {quartiles['MOP'][:,needle, 128:135]}")
+                                    print(f"len 0 step: {step}, quartiles {[quartiles[key][:, needle, fin_seg_start + step]]}")
+                                    
                                     fin_quartiles_ckpt[key][step] = [quartiles[key][:, needle, fin_seg_start + step]]
                                     beg_quartiles_ckpt[key][step] = [quartiles[key][:, needle, beg_seg_start + step]]
 
                                 else:
+                                    print(f"step: {step}, fin_quartiles_ckpt[{key}][step]: {fin_quartiles_ckpt[key].keys()}")
 
                                     # ys[key][step].append(y)
                                     # y_errs[key][step].append(y_err)
+                                    print(f"len non0 step: {step}, ys {[quartiles[key][:, needle, fin_seg_start + step]]}")
                                     fin_quartiles_ckpt[key][step].append(quartiles[key][:, needle, fin_seg_start + step])
                                     beg_quartiles_ckpt[key][step].append(quartiles[key][:, needle, beg_seg_start + step])
-                            print(f"step: {step}, ys {ys}")
+                            print(f"step: {step}, fin_quartiles_ckpt[key][step]: {fin_quartiles_ckpt[key][step]}")
 
 
             pred_ckpts.append(ckpt_step)
@@ -622,13 +625,16 @@ def plot_haystack_train_conv(config, colors, fin_quartiles_ckpt, beg_quartiles_c
 
         beg_lab_suffix = f" into seg. 1" if config.irrelevant_tokens and config.new_hay_insert else " after initial"
 
-        final_lab_suffix = f" into seg. {config.num_sys_haystack + 1}" if config.irrelevant_tokens and config.new_hay_insert else " after query"
+        if config.irrelevant_tokens and config.new_hay_insert:
+            final_lab_suffix = f" into seg. {config.num_sys_haystack + 1}"
+        elif config.fake_out:
+            final_lab_suffix = f" into last seg."
+        else:
+            final_lab_suffix = f" after query"
 
         if key == "MOP": #key == "OLS_analytical_ir_1" or key == "OLS_ir_1": #key == "MOP" or 
             col_count = 0
             for step in steps:
-                if config.fake_out:
-                    step -= 1
 
                 key_lab = "" if key == "MOP" else f"{key}: "
                 qs = np.array(fin_quartiles_ckpt[key][step])
@@ -653,13 +659,17 @@ def plot_haystack_train_conv(config, colors, fin_quartiles_ckpt, beg_quartiles_c
                 
                 if not config.only_beg:
                     # plot the final quartiles
-                    ax.plot(x_values, qs[1], label=f"{key_lab}{step}{final_lab_suffix}", markersize=5, marker=".", zorder=5 if key == "MOP" else 0, color=colors[col_count], linewidth=2)
+                    if config.fake_out:
+                        plot_step = step - 1
+                    else:
+                        plot_step = step
+                    ax.plot(x_values, qs[1], label=f"{key_lab}{plot_step}{final_lab_suffix}", markersize=5, marker=".", zorder=5 if key == "MOP" else 0, color=colors[col_count], linewidth=2)
                     # if not valA == "gaussA":
                     #     ax.fill_between(x_values, qs[0], qs[2], alpha=0.2, color=colors[col_count])
 
                     ax.fill_between(x_values, qs[0], qs[2], alpha=0.2, color=colors[col_count])
 
-                    ax_len.plot(x_values, qs[1], label=f"{key_lab}{step}{final_lab_suffix}", markersize=5, marker=".", zorder=5 if key == "MOP" else 0, color=colors[col_count], linewidth=2)
+                    ax_len.plot(x_values, qs[1], label=f"{key_lab}{plot_step}{final_lab_suffix}", markersize=5, marker=".", zorder=5 if key == "MOP" else 0, color=colors[col_count], linewidth=2)
                     ax_len.fill_between(x_values, qs[0], qs[2], alpha=0.2, color=colors[col_count])
 
                     color = ax.get_lines()[-1].get_color()
@@ -670,21 +680,23 @@ def plot_haystack_train_conv(config, colors, fin_quartiles_ckpt, beg_quartiles_c
 
                 if not config.only_fin:
                     # plot the beginning quartiles
-                    beg_qs = np.array(beg_quartiles_ckpt[key][step])
-                    beg_qs = np.transpose(beg_qs)
-                    # set the color to the same as the fin quartiles
-                    ax.plot(x_values, beg_qs[1], label=f"{step}{beg_lab_suffix}", markersize=1 if "OLS" in key_lab else 5, marker="x", color=color, linestyle="-" if "OLS_ir" in key_lab else (":" if "OLS_analytical" in key_lab else "--"), linewidth=5 if "OLS_analytical" in key_lab else 2)
+                    if not config.only_fin:
+                        beg_qs = np.array(beg_quartiles_ckpt[key][step])
+                        beg_qs = np.transpose(beg_qs)
+                        # set the color to the same as the fin quartiles
+                        ax.plot(x_values, beg_qs[1], label=f"{step}{beg_lab_suffix}", markersize=1 if "OLS" in key_lab else 5, marker="x", color=color, linestyle="-" if "OLS_ir" in key_lab else (":" if "OLS_analytical" in key_lab else "--"), linewidth=5 if "OLS_analytical" in key_lab else 2)
 
-                    # if not valA == "gaussA":
-                    #     ax.fill_between(x_values, beg_qs[0], beg_qs[2], alpha=0.2, color=color)
-                    ax.fill_between(x_values, beg_qs[0], beg_qs[2], alpha=0.2, color=color)
+                        # if not valA == "gaussA":
+                        #     ax.fill_between(x_values, beg_qs[0], beg_qs[2], alpha=0.2, color=color)
+                        ax.fill_between(x_values, beg_qs[0], beg_qs[2], alpha=0.2, color=color)
 
-                    
+                        
 
-                    ax_len.plot(x_values, beg_qs[1], label=f"{step}{beg_lab_suffix}", markersize=1 if "OLS" in key_lab else 5, marker="x", color=color, linestyle="-" if "OLS_ir" in key_lab else (":" if "OLS_analytical" in key_lab else "--"), linewidth=5 if "OLS_analytical" in key_lab else 2)
-                    ax_len.fill_between(x_values, beg_qs[0], beg_qs[2], alpha=0.2, color=color)
+                        ax_len.plot(x_values, beg_qs[1], label=f"{step}{beg_lab_suffix}", markersize=1 if "OLS" in key_lab else 5, marker="x", color=color, linestyle="-" if "OLS_ir" in key_lab else (":" if "OLS_analytical" in key_lab else "--"), linewidth=5 if "OLS_analytical" in key_lab else 2)
+                        ax_len.fill_between(x_values, beg_qs[0], beg_qs[2], alpha=0.2, color=color)
 
-                    if config.nx == 5:
+                    if (config.nx == 5):
+                        print(f"\n\nPlotting pseudo prediction errors for step: {step}\n\n")
                         #plot the pseudo prediction errors
                         #take the median of the pseudo prediction errors
                         pseudo_pred_meds = np.median(pseudo_pred_errs, axis=1)
@@ -696,22 +708,27 @@ def plot_haystack_train_conv(config, colors, fin_quartiles_ckpt, beg_quartiles_c
 
                         x_values = np.array(x_values, dtype=float)
 
+                        # if (config.len_seg_haystack == 2):
+                        #     pseudo_pred_step = step + 2
+                        # else:
+                        #     pseudo_pred_step = step
+                        pseudo_pred_step = step
                         skip = 5
-                        y = np.full(x_values[::skip].shape, pseudo_pred_qs[1, 1 + step], dtype=float)
-                        yerr_lower = np.full(x_values[::skip].shape, pseudo_pred_qs[1, 1 + step] - pseudo_pred_qs[0, 1 + step], dtype=float)
-                        yerr_upper = np.full(x_values[::skip].shape, pseudo_pred_qs[2, 1 + step] - pseudo_pred_qs[1, 1 + step], dtype=float)
-
+                        y = np.full(x_values[::skip].shape, pseudo_pred_qs[1, 1 + pseudo_pred_step], dtype=float)
+                        yerr_lower = np.full(x_values[::skip].shape, pseudo_pred_qs[1, 1 + pseudo_pred_step] - pseudo_pred_qs[0, 1 + pseudo_pred_step], dtype=float)
+                        yerr_upper = np.full(x_values[::skip].shape, pseudo_pred_qs[2, 1 + pseudo_pred_step] - pseudo_pred_qs[1, 1 + pseudo_pred_step], dtype=float)
+                        
                         ax.errorbar(
                             x_values[::skip], y,
                             yerr=[yerr_lower, yerr_upper],
                             fmt='o', color=colors[col_count],
-                            label=f"Pseudoinv: {step}{final_lab_suffix}", capsize=2, markersize=5, marker=".", linestyle=":", linewidth=2, zorder=100
+                            label=f"Pseudoinv step: {pseudo_pred_step}", capsize=2, markersize=5, marker=".", linestyle=":", linewidth=2, zorder=100
                         )
                         ax_len.errorbar(
                             x_values[::skip], y,
                             yerr=[yerr_lower, yerr_upper],
                             fmt='o', color=colors[col_count],
-                            label=f"Pseudoinv: {step}{final_lab_suffix}", capsize=2, markersize=5, marker=".", linestyle=":", linewidth=2, zorder=100
+                            label=f"Pseudoinv step: {pseudo_pred_step}", capsize=2, markersize=5, marker=".", linestyle=":", linewidth=2, zorder=100
                         )
 
                 
@@ -758,11 +775,11 @@ def plot_haystack_train_conv(config, colors, fin_quartiles_ckpt, beg_quartiles_c
     ax.set_ylim([2e-3, 2e0])
     # ax.set_title(("Ortho" if valA == "ortho" else ("Gaussian" if valA == "gaussA" else "Identity")) + f" Haystack Length: {haystack_len} vs Training Examples")
 
-    ax_len.set_xlabel("# of Training Examples", fontsize=14)
+    ax_len.set_xlabel("# of Training Traces Seen so far in Training", fontsize=16)
     ax_len.set_ylabel(f"Error " + ("Ratio" if valA == "gaussA" and not abs_err else ""), fontsize=14)
     ax_len.set_yscale('linear')
     ax_len.set_xscale('log')
-    ax_len.grid(True, which="both")
+    ax_len.grid(color='gray', linestyle='--', linewidth=0.5, alpha=0.3, which='both')
     leg_len = ax_len.legend(fontsize=8, ncol=2 if valA =="ident" else 3, loc="upper left", columnspacing=0.4) #"center right" if valA == "ident" else 
     leg_len.set_zorder(101)  # Ensure legend is on top
     ax_len.set_xlim(x_values[0] - 1e3, x_values[-1] + 1e3)
@@ -870,7 +887,7 @@ def haystack_plots_needle_full(config, haystack_len, output_dir, ckpt_step, step
         #plot needle position
         plot_needle_position(config, experiment, config.datasource, config.nx, ckpt_step, config.val_dataset_typ, config.C_dist, haystack_len, steps_in, open_paren_ind, quartiles, seg_ext_quartiles, colors, not config.use_pos_emb)
 
-        #plot steps after open token
+        #plot steps after query token
         plot_steps_after_open_token(config, haystack_len, quartiles, seg_ext_quartiles, colors, config.val_dataset_typ, experiment, config.datasource, open_paren_ind, config.n_positions, config.len_seg_haystack, not config.use_pos_emb, ckpt_step)
 
         print(f"open_paren_ind: {open_paren_ind}")
@@ -947,7 +964,7 @@ def haystack_plots(config, model_name, haystack_len, output_dir, pred_ckpt_steps
         #     #plot needle position
         #     plot_needle_position(config, experiment, config.datasource, config.nx, ckpt_step, config.val_dataset_typ, config.C_dist, haystack_len, steps_in, open_paren_ind, quartiles, seg_ext_quartiles, colors, not config.use_pos_emb)
 
-        #     #plot steps after open token
+        #     #plot steps after query token
         #     plot_steps_after_open_token(config, haystack_len, quartiles, seg_ext_quartiles, colors, config.val_dataset_typ, experiment, config.datasource, open_paren_ind, config.n_positions, config.len_seg_haystack, not config.use_pos_emb)
 
         #     print(f"open_paren_ind: {open_paren_ind}")
