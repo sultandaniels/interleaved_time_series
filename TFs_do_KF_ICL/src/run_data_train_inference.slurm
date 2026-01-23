@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=icl-train
+#SBATCH --job-name=unmask_back_beg
 #SBATCH --account=benv-dtai-gh
 #SBATCH --partition=ghx4
 #SBATCH --nodes=1
