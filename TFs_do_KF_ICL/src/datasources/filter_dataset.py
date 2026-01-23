@@ -513,7 +513,7 @@ def add_backstories(config, sim_objs, segments, mask_idx, sys_appear, sys_choice
         if idx > config.n_positions + 1:
             raise Exception(f"debug_str: {debug_str} mask_idx {idx} is out of bounds for segments with shape {segments.shape} x0_ind: {x0_ind}, seg_starts: {seg_starts}")
     # print(f"mask_idx after backstory addition: {mask_idx}\n")
-    
+
     return segments, mask_idx
 
 

@@ -31,7 +31,7 @@ class Config(object, metaclass=Singleton):
     changing = False #used only for plotting
 
     #mem_suppress experiment settings
-    mem_suppress = False #run the memory suppression experiment
+    mem_suppress = True #run the memory suppression experiment
     masking = True #run the masking training run
     cached_data = False #use cached data
     backstory = True #use masked backstories
@@ -43,7 +43,7 @@ class Config(object, metaclass=Singleton):
     multi_sys_trace = True #have multiple systems in a single trace
     max_sys_trace = min(25, num_tasks) #maximum number of systems in a trace
     single_system = False #only use a single system in the test trace
-    zero_cut = True #no cuts in the trace interleaving
+    zero_cut = False #no cuts in the trace interleaving
     needle_in_haystack = False #run needle in haystack tests
     needle_final_seg_extended = False #extend the final segment of the needle in haystack test
     datasource="val" #"val" #"train" #"train_systems" #which dataset to use for the needle in haystack tests
@@ -53,25 +53,24 @@ class Config(object, metaclass=Singleton):
     num_test_traces_configs = num_sys_haystack if needle_in_haystack and (not needle_final_seg_extended) else (1 if needle_in_haystack and needle_final_seg_extended else (num_val_tasks if zero_cut else 1)) #number of test traces configurations to generate
 
     # Training settings
-    devices=[2] #which GPU
+    devices=[0] #which GPU
     train_steps = 10080000 #number of training steps (27000x3 = 81000 effective single GPU iterations)      (num_tasks*num_traces[train])/batch_size
     num_epochs = 1 #minimum number of epochs to train for
     train_int = 1000 #1000 #number of steps between logging (train interval)
     use_true_len = False #Flag for a dataset length to be num_tasks
-    batch_size = 128 #1024 #512 #8*40 #usually 512 (~35GB) tune this to fit into GPU memory
+    batch_size =  320 #1024 #512 #8*40 #usually 512 (~35GB) tune this to fit into GPU memory
     acc_grad_batch = 1 #number of batches to accumulate gradients over
-    train_data_workers = 31 #set to 1 (check if it changes the speed of the training process)
+    train_data_workers = 1 #set to 1 (check if it changes the speed of the training process)
     test_batch_size = 512
     test_data_workers = 7 #keep at 1
 
     # Model settings
-    model_type = "llama" #"GPT2" #"transfoXL" #"olmo" #"mamba2"
+    model_type = "GPT2" #"GPT2" #"transfoXL" #"olmo" #"mamba2"
     use_pos_emb = True #use positional embeddings
     n_positions = 250 - mask_budget*backstory_len if mem_suppress and not masking else 250  #500 for extended OLS #250 #context length
-    n_embd = 10 #128 #192 #288
-    n_interm_embd = 10 #512 #768 #1152
-    n_layer = 2 #12 #24 #48
-    n_head = 5 #8 #12 #18 n_embd % n_head == 0 and n_embd / n_head must be even for RoPE
+    n_embd = 192 #128 #192 #288
+    n_layer = 24 #12 #24 #48
+    n_head = 12 #8 #12 #18
     n_dims_in = int(ny + (2*max_sys_trace) + 2) if multi_sys_trace else ny #input dimension is the observation dimension #input dimension is the observation dimension + special token parentheses + special start token + payload identifier
     n_dims_out = ny  #(IMPORTANT TO KEEP THIS AT 5 FOR NOW) TODO: this used to be 10 but needs to be fixed to match lin_sys.yaml
 
@@ -86,8 +85,7 @@ class Config(object, metaclass=Singleton):
     # clamp_len = 1000
 
     # Optimizer parameters
-    # learning_rate = np.sqrt((len(devices) * batch_size)/512)*(0.833333333)*1.584893192461114e-05 #1.9054607179632464e-05. #(0.833333333)
-    learning_rate = 1e-5
+    learning_rate = np.sqrt((len(devices) * batch_size)/512)*(0.833333333)*1.584893192461114e-05 #1.9054607179632464e-05. #(0.833333333)
     weight_decay = 1e-2
 
     # Gradient Clipping

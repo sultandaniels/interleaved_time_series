@@ -56,7 +56,7 @@ class Config(object, metaclass=Singleton):
     devices=[2] #which GPU
     train_steps = 10080000 #number of training steps (27000x3 = 81000 effective single GPU iterations)      (num_tasks*num_traces[train])/batch_size
     num_epochs = 1 #minimum number of epochs to train for
-    train_int = 1000 #1000 #number of steps between logging (train interval)
+    train_int = 100 #1000 #number of steps between logging (train interval)
     use_true_len = False #Flag for a dataset length to be num_tasks
     batch_size = 128 #1024 #512 #8*40 #usually 512 (~35GB) tune this to fit into GPU memory
     acc_grad_batch = 1 #number of batches to accumulate gradients over
@@ -71,7 +71,7 @@ class Config(object, metaclass=Singleton):
     n_embd = 10 #128 #192 #288
     n_interm_embd = 10 #512 #768 #1152
     n_layer = 2 #12 #24 #48
-    n_head = 5 #8 #12 #18 n_embd % n_head == 0 and n_embd / n_head must be even for RoPE
+    n_head = 5 #8 #12 #18 n_embd % n_head == 0
     n_dims_in = int(ny + (2*max_sys_trace) + 2) if multi_sys_trace else ny #input dimension is the observation dimension #input dimension is the observation dimension + special token parentheses + special start token + payload identifier
     n_dims_out = ny  #(IMPORTANT TO KEEP THIS AT 5 FOR NOW) TODO: this used to be 10 but needs to be fixed to match lin_sys.yaml
 
@@ -87,7 +87,7 @@ class Config(object, metaclass=Singleton):
 
     # Optimizer parameters
     # learning_rate = np.sqrt((len(devices) * batch_size)/512)*(0.833333333)*1.584893192461114e-05 #1.9054607179632464e-05. #(0.833333333)
-    learning_rate = 1e-5
+    learning_rate = 1e-3
     weight_decay = 1e-2
 
     # Gradient Clipping

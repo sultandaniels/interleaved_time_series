@@ -1948,7 +1948,7 @@ def compute_errors_needle_or_multi_cut(config, model, sim_objs, errs_dir, errs_l
     print(f"multi_sys_ys_true shape: {multi_sys_ys_true.shape}")
 
     errs_tf = np.linalg.norm((multi_sys_ys_true - preds_tf), axis=-1) ** 2  # get the errors of transformer predictions
-    print(f"tok_seg_lens_all_ex[0] shape: {np.array(tok_seg_lens_all_ex[0])}")
+    # print(f"tok_seg_lens_all_ex[0] shape: {np.array(tok_seg_lens_all_ex[0])}")
     for trace_config in range(errs_tf.shape[1]):
         #set the errors for the start token to be infinite
         errs_tf[:, trace_config, :, 0] = np.inf
@@ -1961,8 +1961,8 @@ def compute_errors_needle_or_multi_cut(config, model, sim_objs, errs_dir, errs_l
                 if real_seg_lens_all_ex[0][trace_config][seg_count] < tok_seg_lens_all_ex[0][trace_config][seg_count] - 1:
                     errs_tf[:, trace_config, :, seg_start + tok_seg_lens_all_ex[0][trace_config][seg_count] - 1] = np.inf
                 if seg_start + tok_seg_lens_all_ex[0][trace_config][seg_count] <= config.n_positions:
-                    print(f"Setting inf at seg_start + tok_seg_lens: {seg_start + tok_seg_lens_all_ex[0][trace_config][seg_count]}")
-                    print(f"errs_tf shape: {errs_tf.shape}")
+                    # print(f"Setting inf at seg_start + tok_seg_lens: {seg_start + tok_seg_lens_all_ex[0][trace_config][seg_count]}")
+                    # print(f"errs_tf shape: {errs_tf.shape}")
                     errs_tf[:, trace_config, :, seg_start + tok_seg_lens_all_ex[0][trace_config][seg_count]] = np.inf
             seg_count += 1
 
@@ -1980,11 +1980,11 @@ def compute_errors_needle_or_multi_cut(config, model, sim_objs, errs_dir, errs_l
     errs_zero = np.linalg.norm(multi_sys_ys_true, axis=-1) ** 2  # get the errors of zero predictions
     err_lss["Zero"] = errs_zero
 
-    if config.num_haystack_examples == 1:
-        for i in range(len(sys_choices_all_ex[0])):
-            print(f"trace config: {i}")
-            print(f"len of sys_choices: {len(sys_choices_all_ex[0][i])}")
-            print("sum of zero err:", np.sum(errs_zero[i]))
+    # if config.num_haystack_examples == 1:
+    #     for i in range(len(sys_choices_all_ex[0])):
+    #         print(f"trace config: {i}")
+    #         print(f"len of sys_choices: {len(sys_choices_all_ex[0][i])}")
+    #         print("sum of zero err:", np.sum(errs_zero[i]))
 
     del errs_zero
 
@@ -2066,8 +2066,8 @@ def interleave_traces(config, ys, num_test_traces_configs, num_trials, ex=None, 
         print(f"num_test_traces_configs: {num_test_traces_configs}")
     multi_sys_ys_context_len = config.n_positions + 1
 
-    if config.datasource == "backstory_train":
-        multi_sys_ys_context_len += config.backstory_len*min(config.num_sys_haystack,10)
+    # if config.datasource == "backstory_train":
+    #     multi_sys_ys_context_len += config.backstory_len*min(config.num_sys_haystack,10)
 
     if config.fake_out:
         multi_sys_ys_context_len += config.len_seg_haystack - 1

@@ -56,9 +56,9 @@ class Config(object, metaclass=Singleton):
     devices=[2] #which GPU
     train_steps = 10080000 #number of training steps (27000x3 = 81000 effective single GPU iterations)      (num_tasks*num_traces[train])/batch_size
     num_epochs = 1 #minimum number of epochs to train for
-    train_int = 1000 #1000 #number of steps between logging (train interval)
+    train_int = 1 #1000 #number of steps between logging (train interval)
     use_true_len = False #Flag for a dataset length to be num_tasks
-    batch_size = 128 #1024 #512 #8*40 #usually 512 (~35GB) tune this to fit into GPU memory
+    batch_size = 4 #1024 #512 #8*40 #usually 512 (~35GB) tune this to fit into GPU memory
     acc_grad_batch = 1 #number of batches to accumulate gradients over
     train_data_workers = 31 #set to 1 (check if it changes the speed of the training process)
     test_batch_size = 512
@@ -87,7 +87,7 @@ class Config(object, metaclass=Singleton):
 
     # Optimizer parameters
     # learning_rate = np.sqrt((len(devices) * batch_size)/512)*(0.833333333)*1.584893192461114e-05 #1.9054607179632464e-05. #(0.833333333)
-    learning_rate = 1e-5
+    learning_rate = 1e-3
     weight_decay = 1e-2
 
     # Gradient Clipping

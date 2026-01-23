@@ -104,9 +104,9 @@ def train_gpt2(model, config, ckpt_dir, train_mix_dist=False, train_mix_state_di
         fast_dev_run=False,
         # plugins=[slurm_plugin] if slurm_plugin else None,
         # profiler=profiler,
-        enable_progress_bar=False,
+        enable_progress_bar=True,
         accelerator="gpu",
-        precision="16-mixed",
+        precision="bf16-mixed",
         devices=len(config.devices),
         num_nodes=1,
         callbacks=callbacks,
@@ -118,7 +118,7 @@ def train_gpt2(model, config, ckpt_dir, train_mix_dist=False, train_mix_state_di
         max_steps=-1 if config.use_true_len else config.train_steps,
         accumulate_grad_batches=config.acc_grad_batch,
         # max_epochs=config.num_epochs,
-        strategy=DDPStrategy(find_unused_parameters=True)
+        strategy=DDPStrategy(find_unused_parameters=False)
         # strategy=DDPStrategy(gradient_as_bucket_view=False, static_graph=True) #gradient_as_bucket_view might help with memory usage
         # strategy="single_device"
     )

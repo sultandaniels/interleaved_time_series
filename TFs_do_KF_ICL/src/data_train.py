@@ -1,5 +1,5 @@
 from collect_data import collect_data
-from models import GPT2, Mamba2
+from models import GPT2, Mamba2, Llama
 from core import Config
 from train import train_gpt2
 from core import setup_train
@@ -115,6 +115,8 @@ def preds_thread(config, ckpt_path, make_preds, resume_train, train_conv, logsca
                 n_layer=config.n_layer,
                 n_dims_out=config.n_dims_out
             )
+        elif config.model_type == "llama":
+            model = Llama(n_dims_in=config.n_dims_in, n_embd=config.n_embd, n_interm_embd=config.n_interm_embd, n_layer=config.n_layer, n_head=config.n_head, n_dims_out=config.ny, learning_rate=config.learning_rate)
 
         print(f"model: {model}")
         
@@ -140,8 +142,8 @@ def preds_thread(config, ckpt_path, make_preds, resume_train, train_conv, logsca
         model = GPT2.load_from_checkpoint(config.ckpt_path,
                                     n_dims_in=config.n_dims_in, n_positions=config.n_positions,
                                     n_dims_out=config.n_dims_out, n_embd=config.n_embd,
-                                    n_layer=config.n_layer, n_head=config.n_head, use_pos_emb=config.use_pos_emb, map_location=device, strict=True).eval().to(
-        device)
+                                    n_layer=config.n_layer, n_head=config.n_head, use_pos_emb=config.use_pos_emb, map_location=device, strict=True).eval().to(device)
+        
     elif config.model_type == "mamba2":
         model = Mamba2.load_from_checkpoint(config.ckpt_path,
                 n_dims_in=config.n_dims_in,
@@ -149,8 +151,19 @@ def preds_thread(config, ckpt_path, make_preds, resume_train, train_conv, logsca
                 n_embd=config.n_embd,
                 n_layer=config.n_layer,
                 n_dims_out=config.n_dims_out,
-                map_location=device, strict=True).eval().to(device
-            )
+                map_location=device, strict=True).eval().to(device)
+        
+    elif config.model_type == "llama":
+        model = Llama.load_from_checkpoint(config.ckpt_path,
+                                    n_dims_in=config.n_dims_in,
+                                    n_embd=config.n_embd,
+                                    n_interm_embd=config.n_interm_embd,
+                                    n_layer=config.n_layer,
+                                    n_head=config.n_head,
+                                    n_dims_out=config.ny,
+                                    learning_rate=config.learning_rate,
+                                    map_location=device, strict=True).eval().to(device)
+
 
 
     create_plots(config=config, model=model, run_preds=run_preds, run_deg_kf_test=run_deg_kf_test, excess=excess, num_systems=config.num_val_tasks, shade=shade, logscale=logscale, train_conv=train_conv, tf=tf, ys=ys, sim_objs=sim_objs, run_kf_ols=run_kf_ols, output_dir=output_dir)
@@ -909,14 +922,25 @@ def gen_ckpt_pred_steps(model_name): #change this function to use the model name
 
         ckpt_pred_steps = np.arange(minval, maxval + train_int, train_int)
 
-    elif model_name == "ortho_haar_big_mask_backstory_no_leak":
+    # elif model_name == "ortho_haar_big_mask_backstory_no_leak":
+    #     minval = 1000
+    #     maxval = 291000
+    #     train_int = 1000
+
+    #     phases = [minval, 5000, 10000, 52000, maxval]
+
+    #     ckpt_pred_steps = gen_pred_ckpts(minval, maxval, train_int, phases, hande_code_scale=False)
+
+    elif model_name == "ortho_haar_big_mask_backstory_no_leak" or model_name == "ortho_haar_big_unmask_backstory_no_leak":
         minval = 1000
-        maxval = 218000
+        maxval = 316000
         train_int = 1000
 
-        phases = [minval, 5000, 10000, 52000, maxval]
+        phases = [minval, 10000, 52000, 100000, maxval]
 
         ckpt_pred_steps = gen_pred_ckpts(minval, maxval, train_int, phases, hande_code_scale=False)
+        print(ckpt_pred_steps)
+        print(len(ckpt_pred_steps))
 
     elif model_name == "ortho_haar_big_mask_backstory_no_leak_mid":
         minval = 32000
@@ -972,6 +996,20 @@ def gen_ckpt_pred_steps(model_name): #change this function to use the model name
         minval = 1000
         maxval = 33000
         train_int = 1000
+
+        ckpt_pred_steps = np.arange(minval, maxval + train_int, train_int)
+
+    elif model_name == "ortho_haar_play_mask_back":
+        minval = 100
+        maxval = 6000
+        train_int = 100
+
+        ckpt_pred_steps = np.arange(minval, maxval + train_int, train_int)
+
+    elif model_name == "ortho_haar_llama":
+        minval = 1000
+        maxval = 100000
+        train_int = 2000
 
         ckpt_pred_steps = np.arange(minval, maxval + train_int, train_int)
 
@@ -2846,10 +2884,10 @@ def set_config_params(config, model_name):
         
         config.override("learning_rate", np.sqrt((len(config.devices) * config.batch_size)/512)*(0.833333333)*1.584893192461114e-05)
 
-    elif model_name == "ortho_haar_big_mask_backstory_no_leak":
+    elif model_name == "ortho_haar_big_mask_backstory_no_leak_old":
         experiment_name = "backstory_masked_251024_135800.f5836b_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000"
 
-        print("\n\nORTHO HAAR BIG MASK BACKSTORY NO LEAK\n\n")
+        print("\n\nORTHO HAAR BIG MASK BACKSTORY NO LEAK OLD\n\n")
 
         # Dataset settings
         config.override("num_tasks", 40000)  # number of training systems
@@ -2882,6 +2920,57 @@ def set_config_params(config, model_name):
         config.override("use_true_len", False)  # Flag for a dataset length to be num_tasks
         config.override("batch_size", 8*40*2)  # 2048 #512 #usually 512 (~35GB) tune this to fit into GPU memory
         config.override("train_data_workers", 7)  # set to 1 (check if it changes the speed of the training process)
+        config.override("test_batch_size", 512)
+        config.override("test_data_workers", 7)  # keep at 1
+
+        # Model settings
+        config.override("model_type", "GPT2")  # "GPT2" #"transfoXL" #"olmo"
+        config.override("use_pos_emb", True)  # use positional embeddings
+        config.override("n_positions", 250 - config.mask_budget*config.backstory_len if config.mem_suppress and not config.masking else 250)  # 500 for extended OLS #250 #context length
+        config.override("n_embd", 192)
+        config.override("n_layer", 24)
+        config.override("n_head", 12)
+        config.override("n_dims_in", int(config.ny + (2 * config.max_sys_trace) + 2) if config.multi_sys_trace else config.ny)  # input dimension is the observation dimension + special token parentheses + special start token + payload identifier
+        config.override("n_dims_out", 5)  # (IMPORTANT TO KEEP THIS AT 5 FOR NOW) TODO: this used to be 10 but needs to be fixed to match lin_sys.yaml
+        
+        config.override("learning_rate", np.sqrt((len(config.devices) * config.batch_size)/512)*(0.833333333)*1.584893192461114e-05)
+
+    elif model_name == "ortho_haar_big_mask_backstory_no_leak":
+        experiment_name = "backstory_masked_251209_190520.4ba152_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000"
+
+        print("\n\nORTHO HAAR BIG MASK BACKSTORY NO LEAK\n\n")
+
+        # Dataset settings
+        config.override("num_tasks", 40000)  # number of training systems
+        config.override("num_val_tasks", 100)  # number of test systems
+        config.override("dataset_typ", "ortho_haar")  # "unifA" #"gaussA" #"gaussA_noscale" #"rotDiagA" #"rotDiagA_unif" #"rotDiagA_gauss" #"upperTriA" #"single_system" #"cond_num" #"upperTriA_gauss" #"ident" #"ortho"
+        config.override("max_cond_num", 100)
+        config.override("distinct_cond_nums", 10)
+        config.override("val_dataset_typ", "ortho_haar")  # "unifA" #"gaussA" #"gaussA_noscale" #"rotDiagA" #"rotDiagA_unif" #"rotDiagA_gauss" #"upperTriA" #"single_system" #"cond_num" #"ident" #"ortho"
+        config.override("C_dist", "_ident_C")  # "_unif_C" #"_gauss_C" #"_gauss_C_large_var" #"_single_system" #"upperTriA_gauss" #"_ident_C"
+        config.override("nx", 5)
+        config.override("ny", 5)
+        config.override("n_noise", 1)
+        config.override("num_traces", {"train": 1, "val": 1000})
+        config.override("changing", False)  # used only for plotting
+
+        #mem_suppress experiment settings
+        config.override("mem_suppress", True) #run the memory suppression experiment
+        config.override("masking", True) #run the masking training run
+        config.override("cached_data", False) #use masked backstories
+        config.override("backstory", True) #use masked backstories
+        config.override("init_seg", False) #use masked initial segments
+        config.override("backstory_len", config.ny + 2) #length of the backstory
+        config.override("mask_budget", 10) #max # of systems that will be masked on first appearance (alpha)
+
+        # Training settings
+        config.override("devices", [0,1])  # which GPU
+        config.override("train_steps", 1008000)  # number of training steps (27000x3 = 81000 effective single GPU iterations) (num_tasks*num_traces[train])/batch_size
+        config.override("num_epochs", 1)  # minimum number of epochs to train for
+        config.override("train_int",1000)  # number of steps between logging (train interval)
+        config.override("use_true_len", False)  # Flag for a dataset length to be num_tasks
+        config.override("batch_size", 8*40)  # 2048 #512 #usually 512 (~35GB) tune this to fit into GPU memory
+        config.override("train_data_workers", 31)  # set to 1 (check if it changes the speed of the training process)
         config.override("test_batch_size", 512)
         config.override("test_data_workers", 7)  # keep at 1
 
@@ -3049,6 +3138,115 @@ def set_config_params(config, model_name):
         config.override("n_dims_out", config.ny)  # (IMPORTANT TO KEEP THIS AT 5 FOR NOW) TODO: this used to be 10 but needs to be fixed to match lin_sys.yaml
         
         config.override("learning_rate", np.sqrt((len(config.devices) * config.batch_size)/512)**1.584893192461114e-05)
+
+    elif model_name == "ortho_haar_play_mask_back":
+        experiment_name = "backstory_masked_251217_152442.207d29_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_0.01_num_train_sys_40000"
+
+        print("\n\nPLAY MASK BACK\n\n")
+
+        # Dataset settings
+        config.override("num_tasks", 40000)  # number of training systems
+        config.override("num_val_tasks", 100)  # number of test systems
+        config.override("dataset_typ", "ortho_haar")  # "unifA" #"gaussA" #"gaussA_noscale" #"rotDiagA" #"rotDiagA_unif" #"rotDiagA_gauss" #"upperTriA" #"single_system" #"cond_num" #"upperTriA_gauss" #"ident" #"ortho"
+        config.override("max_cond_num", 100)
+        config.override("distinct_cond_nums", 10)
+        config.override("val_dataset_typ", "ortho_haar")  # "unifA" #"gaussA" #"gaussA_noscale" #"rotDiagA" #"rotDiagA_unif" #"rotDiagA_gauss" #"upperTriA" #"single_system" #"cond_num" #"ident" #"ortho"
+        config.override("C_dist", "_ident_C")  # "_unif_C" #"_gauss_C" #"_gauss_C_large_var" #"_single_system" #"upperTriA_gauss" #"_ident_C"
+        config.override("nx", 5)
+        config.override("ny", 5)
+        config.override("n_noise", 1)
+        config.override("num_traces", {"train": 1, "val": 1000})
+        config.override("changing", False)  # used only for plotting
+
+        #mem_suppress experiment settings
+        config.override("mem_suppress", True) #run the memory suppression experiment
+        config.override("masking", True) #run the masking training run
+        config.override("cached_data", False) #use masked backstories
+        config.override("backstory", True) #use masked backstories
+        config.override("init_seg", False) #use masked initial segments
+        config.override("backstory_len", config.ny + 2) #length of the backstory
+        config.override("mask_budget", 10) #max # of systems that will be masked on first appearance (alpha)
+
+        # Training settings
+        config.override("devices", [0])  # which GPU
+        config.override("train_steps", 1008000)  # number of training steps (27000x3 = 81000 effective single GPU iterations) (num_tasks*num_traces[train])/batch_size
+        config.override("num_epochs", 1)  # minimum number of epochs to train for
+        config.override("train_int",1000)  # number of steps between logging (train interval)
+        config.override("use_true_len", False)  # Flag for a dataset length to be num_tasks
+        config.override("batch_size", 16)  # 2048 #512 #usually 512 (~35GB) tune this to fit into GPU memory
+        config.override("train_data_workers", 7)  # set to 1 (check if it changes the speed of the training process)
+        config.override("test_batch_size", 512)
+        config.override("test_data_workers", 7)  # keep at 1
+
+        # Model settings
+        config.override("model_type", "GPT2")  # "GPT2" #"transfoXL" #"olmo"
+        config.override("use_pos_emb", True)  # use positional embeddings
+        config.override("n_positions", 250 - config.mask_budget*config.backstory_len if config.mem_suppress and not config.masking else 250)  # 500 for extended OLS #250 #context length
+        config.override("n_embd", 5)
+        config.override("n_layer", 2)
+        config.override("n_head", 1)
+        config.override("n_dims_in", int(config.ny + (2 * config.max_sys_trace) + 2) if config.multi_sys_trace else config.ny)  # input dimension is the observation dimension + special token parentheses + special start token + payload identifier
+        config.override("n_dims_out", 5)  # (IMPORTANT TO KEEP THIS AT 5 FOR NOW) TODO: this used to be 10 but needs to be fixed to match lin_sys.yaml
+        
+        config.override("learning_rate", 1e-2)
+
+    elif model_name == "ortho_haar_llama":
+        experiment_name = "251217_212211.ccb107_multi_sys_trace_zero_cut_ortho_haar_state_dim_5_ident_C_lr_0.001_num_train_sys_40000"
+
+        print("\n\nllama\n\n")
+
+        # Dataset settings
+        config.override("num_tasks", 40000)  # number of training systems
+        config.override("num_val_tasks", 100)  # number of test systems
+        config.override("dataset_typ", "ortho_haar")  # "unifA" #"gaussA" #"gaussA_noscale" #"rotDiagA" #"rotDiagA_unif" #"rotDiagA_gauss" #"upperTriA" #"single_system" #"cond_num" #"upperTriA_gauss" #"ident" #"ortho"
+        config.override("max_cond_num", 100)
+        config.override("distinct_cond_nums", 10)
+        config.override("val_dataset_typ", "ortho_haar")  # "unifA" #"gaussA" #"gaussA_noscale" #"rotDiagA" #"rotDiagA_unif" #"rotDiagA_gauss" #"upperTriA" #"single_system" #"cond_num" #"ident" #"ortho"
+        config.override("C_dist", "_ident_C")  # "_unif_C" #"_gauss_C" #"_gauss_C_large_var" #"_single_system" #"upperTriA_gauss" #"_ident_C"
+        config.override("nx", 5)
+        config.override("ny", 5)
+        config.override("n_noise", 1)
+        config.override("num_traces", {"train": 1, "val": 1000})
+        config.override("changing", False)  # used only for plotting
+
+        #mem_suppress experiment settings
+        config.override("mem_suppress", False) #run the memory suppression experiment
+        config.override("masking", True) #run the masking training run
+        config.override("cached_data", False) #use masked backstories
+        config.override("backstory", True) #use masked backstories
+        config.override("init_seg", False) #use masked initial segments
+        config.override("backstory_len", config.ny + 2) #length of the backstory
+        config.override("mask_budget", 10) #max # of systems that will be masked on first appearance (alpha)
+
+        #experiment settings
+        config.override("multi_sys_trace", True) #use multiple system traces
+        config.override("zero_cut", True) #use zero cut traces for training and validation
+        config.override("single_system", False) #use single system traces for testing
+        config.override("needle_in_haystack", False) #do not use needle in haystack validation
+
+        # Training settings
+        config.override("devices", [0])  # which GPU
+        config.override("train_steps", 1008000)  # number of training steps (27000x3 = 81000 effective single GPU iterations) (num_tasks*num_traces[train])/batch_size
+        config.override("num_epochs", 1)  # minimum number of epochs to train for
+        config.override("train_int",1000)  # number of steps between logging (train interval)
+        config.override("use_true_len", False)  # Flag for a dataset length to be num_tasks
+        config.override("batch_size", 128)  # 2048 #512 #usually 512 (~35GB) tune this to fit into GPU memory
+        config.override("train_data_workers", 7)  # set to 1 (check if it changes the speed of the training process)
+        config.override("test_batch_size", 512)
+        config.override("test_data_workers", 7)  # keep at 1
+
+        # Model settings
+        config.override("model_type", "llama")  # "GPT2" #"transfoXL" #"olmo"
+        config.override("use_pos_emb", True)  # use positional embeddings
+        config.override("n_positions", 250 - config.mask_budget*config.backstory_len if config.mem_suppress and not config.masking else 250)  # 500 for extended OLS #250 #context length
+        config.override("n_embd", 10)
+        config.override("n_interm_embd", 10)
+        config.override("n_layer", 2)
+        config.override("n_head", 5)
+        config.override("n_dims_in", int(config.ny + (2 * config.max_sys_trace) + 2) if config.multi_sys_trace else config.ny)  # input dimension is the observation dimension + special token parentheses + special start token + payload identifier
+        config.override("n_dims_out", 5)  # (IMPORTANT TO KEEP THIS AT 5 FOR NOW) TODO: this used to be 10 but needs to be fixed to match lin_sys.yaml
+        
+        config.override("learning_rate", 1e-3)
 
 
 
@@ -3553,7 +3751,7 @@ if __name__ == '__main__':
 
         # ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_masked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=139000.ckpt" #masked_backstories
         
-        ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_unmasked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=34000.ckpt" #unmasked_backstories
+        # ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_unmasked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=34000.ckpt" #unmasked_backstories
 
         # ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_masked_250616_115216.fc25ec_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.584893192461114e-05_num_train_sys_40000/checkpoints/step={ckpt}.ckpt" #medium masked backstories beg
 
@@ -3563,7 +3761,7 @@ if __name__ == '__main__':
 
         # ckpt_path = f"{BASE_PATH}model_checkpoints/mamba2/250729_202822.09c446_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_5.7189906933638386e-06_num_train_sys_40000/checkpoints/step=1008000.ckpt" #mamba2 training run
 
-        # ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_masked_251024_135800.f5836b_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=124000.ckpt" #masked backstories big no leak
+        ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_masked_251209_190520.4ba152_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=9000.ckpt" #masked backstories big no leak
         
         run_preds, run_deg_kf_test, excess, shade = preds_thread(config, ckpt_path, make_preds, resume_train, train_conv, logscale, tf, train_mix_dist=train_mix_dist, train_mix_state_dim=train_mix_state_dim, output_dir=output_dir, ys=None, sim_objs=None, run_kf_ols=False)
         
@@ -3641,7 +3839,7 @@ if __name__ == '__main__':
                 if config.val_dataset_typ == "ident" or config.val_dataset_typ == "gaussA":
                     steps_in = [1,2,3,5,10]
                 else:
-                    steps_in = [1,2,3]
+                    steps_in = [1,2,3,5,7,8]
 
             colors=['#000000', '#005CAB', '#E31B23', '#FFC325', '#00A651', '#9B59B6']
         
@@ -3908,10 +4106,14 @@ if __name__ == '__main__':
                 n_layer=config.n_layer,
                 n_dims_out=config.n_dims_out
             )
+        elif config.model_type == "llama":
+            model = Llama(n_dims_in=config.n_dims_in, n_embd=config.n_embd, n_interm_embd=config.n_interm_embd, n_layer=config.n_layer, n_head=config.n_head, n_dims_out=config.ny, learning_rate=config.learning_rate)
         
-        model.to(device)
+        model.to(device, dtype=torch.bfloat16)
 
+        print(f"model dtype: {next(model.parameters()).dtype}")
         print(f"model: {model}")
+        print(f"model.num_heads: {model.n_head}")
         
         output_dir, ckpt_dir, experiment_name = setup_train(model, train_mix_dist, train_mix_state_dim)
         # output_dir = output_dir + f"_{config.dataset_typ}{config.C_dist}"
