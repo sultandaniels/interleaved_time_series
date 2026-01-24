@@ -24,6 +24,6 @@ nvidia-smi
 python -c "import torch; print('PyTorch:', torch.__version__, 'CUDA available:', torch.cuda.is_available())"
 
 cd /projects/benv/sdaniels2/interleaved_time_series/TFs_do_KF_ICL/src
-python data_train.py --multi_haystack --model_name ortho_haar_big_unmask_backstory_no_leak --make_preds --all_steps_in --haystack_len 5
+python data_train.py --multi_haystack --model_name ortho_haar_big_unmask_backstory_no_leak_mid --make_preds --all_steps_in --haystack_len 5
 
 echo "Job finished at: $(date)"
