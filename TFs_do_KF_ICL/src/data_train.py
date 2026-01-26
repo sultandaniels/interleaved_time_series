@@ -876,7 +876,7 @@ def gen_ckpt_pred_steps(model_name): #change this function to use the model name
 
     elif model_name == "ortho_haar_big":
         minval = 1000
-        maxval = 121000
+        maxval = 135000
         train_int = 1000
 
         phases = [minval, 10000, 52000, maxval]

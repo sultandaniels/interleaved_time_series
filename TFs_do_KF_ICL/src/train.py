@@ -118,7 +118,7 @@ def train_gpt2(model, config, ckpt_dir, train_mix_dist=False, train_mix_state_di
         max_steps=-1 if config.use_true_len else config.train_steps,
         accumulate_grad_batches=config.acc_grad_batch,
         # max_epochs=config.num_epochs,
-        strategy=DDPStrategy(find_unused_parameters=False)
+        strategy=DDPStrategy(find_unused_parameters=True)
         # strategy=DDPStrategy(gradient_as_bucket_view=False, static_graph=True) #gradient_as_bucket_view might help with memory usage
         # strategy="single_device"
     )
