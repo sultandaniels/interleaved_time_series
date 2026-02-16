@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=unmask_back_beg_backtrain
+#SBATCH --job-name=unmask_back_beg_backtrain_debug
 #SBATCH --account=benv-dtai-gh
 #SBATCH --partition=ghx4
 #SBATCH --nodes=1

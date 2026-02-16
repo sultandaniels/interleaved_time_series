@@ -517,6 +517,7 @@ def compute_quartiles_ckpt(config, model_name, steps_in, model_dir, experiment, 
 
                                     # ys[key][step] = [y]
                                     # y_errs[key][step] = [y_err]
+                                    print(f"shape of quartiles[key]: {quartiles[key].shape}, needle: {needle}, fin_seg_start: {fin_seg_start}, step: {step}")
                                     print(f"len 0 step: {step}, quartiles {[quartiles[key][:, needle, fin_seg_start + step]]}")
                                     
                                     fin_quartiles_ckpt[key][step] = [quartiles[key][:, needle, fin_seg_start + step]]
