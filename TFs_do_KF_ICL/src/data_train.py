@@ -3766,9 +3766,8 @@ if __name__ == '__main__':
         run_preds, run_deg_kf_test, excess, shade = preds_thread(config, ckpt_path, make_preds, resume_train, train_conv, logscale, tf, train_mix_dist=train_mix_dist, train_mix_state_dim=train_mix_state_dim, output_dir=output_dir, ys=None, sim_objs=None, run_kf_ols=False)
         
     elif train_conv or multi_haystack:
-
         kal_step = None
-        last_haystack_len = 19
+        last_haystack_len = 5
 
         if abs_err: #if we are not taking the ratios of the gauss errors
             num_haystack_examples = 1
@@ -3858,7 +3857,6 @@ if __name__ == '__main__':
                 num_sys_haystacks = [haystack_len]
             else:
                 num_sys_haystacks = list(range(1,last_haystack_len+1))
-                # num_sys_haystacks = [1,5]
 
             print("num_sys_haystacks:", num_sys_haystacks)
 
