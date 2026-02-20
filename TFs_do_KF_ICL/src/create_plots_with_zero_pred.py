@@ -1891,7 +1891,9 @@ def compute_errors_needle_or_multi_cut(config, model, sim_objs, errs_dir, errs_l
     multi_sys_ys_context_len = config.n_positions + 1
 
     if config.datasource == "backstory_train":
-        multi_sys_ys_context_len += config.backstory_len*min(config.num_sys_haystack,10)
+        multi_sys_ys_context_len += config.backstory_len*config.num_sys_haystack
+        if config.new_hay_insert:
+            multi_sys_ys_context_len += config.backstory_len
 
     # path to interleaved data file
     if config.needle_in_haystack:
@@ -2058,6 +2060,10 @@ def interleave_traces(config, ys, num_test_traces_configs, num_trials, ex=None, 
         num_trials = config.num_traces["val"]
     elif config.datasource == "train" or config.datasource == "backstory_train":
         num_trials = config.num_traces["train"]
+        if config.datasource == "backstory_train":
+            config.override("n_positions", config.n_positions + config.backstory_len*config.num_sys_haystack)
+            if config.new_hay_insert:
+                config.override("n_positions", config.n_positions + config.backstory_len)
     else:
         raise ValueError(f"datasource {config.datasource} not recognized")
     
@@ -2104,6 +2110,11 @@ def interleave_traces(config, ys, num_test_traces_configs, num_trials, ex=None, 
         seg_starts_per_config.append(seg_starts)
         real_seg_lens_per_config.append(real_seg_lens)
         sys_inds_per_config.append(sys_inds)
+
+    if config.datasource == "backstory_train":
+        config.override("n_positions", config.n_positions - config.backstory_len*config.num_sys_haystack)
+        if config.new_hay_insert:
+            config.override("n_positions", config.n_positions - config.backstory_len)
 
     return multi_sys_ys, sys_choices_per_config, sys_dict_per_config, tok_seg_lens_per_config, seg_starts_per_config, real_seg_lens_per_config, sys_inds_per_config
 

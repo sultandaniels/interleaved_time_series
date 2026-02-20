@@ -28,8 +28,8 @@ import resource
 print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
 os.environ["WANDB_SILENT"] = "true"
 
-#set a global variable for the path "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/"
-BASE_PATH = "/data/shared/ICL_Kalman_Experiments/"
+#set a global variable for the path "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/" "/data/shared/ICL_Kalman_Experiments/"
+BASE_PATH = "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/"
 os.environ["BASE_PATH"] = BASE_PATH
 
 
@@ -2989,7 +2989,7 @@ def set_config_params(config, model_name):
     elif model_name == "ortho_haar_big_unmask_backstory_no_leak":
         experiment_name = "backstory_unmasked_251216_134701.16f67a_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000"
 
-        print("\n\nORTHO HAAR BIG MASK BACKSTORY NO LEAK\n\n")
+        print("\n\nORTHO HAAR BIG UNMASK BACKSTORY NO LEAK\n\n")
 
         # Dataset settings
         config.override("num_tasks", 40000)  # number of training systems
@@ -3908,7 +3908,7 @@ if __name__ == '__main__':
             if haystack_len is not None:
                 num_sys_haystacks = [haystack_len]
             else:
-                num_sys_haystacks = list(range(1,last_haystack_len+1))
+                num_sys_haystacks = [1,7] #list(range(1,last_haystack_len+1))
 
             print("num_sys_haystacks:", num_sys_haystacks)
 
