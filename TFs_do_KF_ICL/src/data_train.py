@@ -29,7 +29,7 @@ print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
 os.environ["WANDB_SILENT"] = "true"
 
 #set a global variable for the path "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/" "/data/shared/ICL_Kalman_Experiments/"
-BASE_PATH = "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/"
+BASE_PATH = "/data/shared/ICL_Kalman_Experiments/"
 os.environ["BASE_PATH"] = BASE_PATH
 
 
