@@ -503,7 +503,6 @@ def add_backstories(config, sim_objs, segments, mask_idx, sys_appear, sys_choice
         i += 1
 
     debug_str = ''
-    raise Exception(f"segments.shape: {segments.shape}, config.n_positions: {config.n_positions}")
     if segments.shape[0] <= config.n_positions:
         pre_concat_len = segments.shape[0] #the context len of segments before concatenation of zeros
 

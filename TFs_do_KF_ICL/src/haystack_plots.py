@@ -528,7 +528,7 @@ def compute_quartiles_ckpt(config, model_name, steps_in, model_dir, experiment, 
 
                                     # ys[key][step].append(y)
                                     # y_errs[key][step].append(y_err)
-                                    print(f"len non0 step: {step}, ys {[quartiles[key][:, needle, fin_seg_start + step]]}")
+                                    print(f"len  step: {step}, ys {[quartiles[key][:, needle, fin_seg_start + step]]}")
                                     fin_quartiles_ckpt[key][step].append(quartiles[key][:, needle, fin_seg_start + step])
                                     beg_quartiles_ckpt[key][step].append(quartiles[key][:, needle, beg_seg_start + step])
                             print(f"step: {step}, fin_quartiles_ckpt[key][step]: {fin_quartiles_ckpt[key][step]}")
