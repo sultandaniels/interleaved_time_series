@@ -258,7 +258,6 @@ def populate_traces(config, num_tasks, entries, test=False, train_conv=False, tr
                     print(f"sys_ind: {sys_ind}")
             
             sys_choices.append(sys_ind) #add the system index to the list of system choices
-            print(f"sys_choices: {sys_choices}, seg_count: {seg_count}, len(sys_inds): {len(sys_inds)}, sys_ind: {sys_ind}")
 
         #get obs from the system trace corresponding to sys_trace_ind
         if test:
@@ -328,8 +327,11 @@ def populate_traces(config, num_tasks, entries, test=False, train_conv=False, tr
             seg_count += 1
             continue
         else:
-            if test and config.identical_haystack and config.needle_in_haystack and seg_count > 0 and seg_count < (len(seg_lens) - 1):
-                segment = last_segment #use the last segment again
+            if test and (config.identical_haystack or config.repeat_haystack) and config.needle_in_haystack and seg_count > 0:
+                if config.identical_haystack and seg_count < (len(seg_lens) - 1):
+                    segment = last_segment #use the last segment again
+                elif config.repeat_haystack:
+                    segment = last_segment
 
             else:
                 if next_start[sys_ind] + seg_len > sys_trace_obs.shape[0]: #if the next starting index plus the segment length is greater than the length of the trace
@@ -400,12 +402,9 @@ def populate_traces(config, num_tasks, entries, test=False, train_conv=False, tr
 
         sys_appear = []
         mask_idx = [] # initialize the mask index list
-        print(f"segments.shape before adding backstories: {segments.shape}")
-        print(f"sys_choices before adding backstories: {sys_choices}")
         segments, mask_idx = add_backstories(config, sim_objs, segments, mask_idx, sys_appear, sys_choices, seg_starts, real_seg_lens, test=test)
         # config.override("n_positions", segments.shape[0])
         seg_starts = orig_seg_starts
-        print(f"segments.shape after adding backstories: {segments.shape}")
 
     if test and config.needle_in_haystack and config.fake_out:
         # print(f"tok_seg_lens before fake_out {tok_seg_lens}")
@@ -446,18 +445,18 @@ def populate_traces(config, num_tasks, entries, test=False, train_conv=False, tr
         # print_matrix(segments[seg_start:seg_start + tok_seg_len, :], "segments[seg_start:seg_start + tok_seg_len, :]")
 
         # print(f"sum of tok_seg_lens: {sum(tok_seg_lens)}, context_len {context_len}")
-        print(f"sys_choices: {sys_choices}, tok_seg_lens: {tok_seg_lens}, seg_starts: {seg_starts}")
         # raise Exception(f"print final_segments {print_matrix(segments, 'final segments')}")
     return segments, sys_choices, sys_dict, tok_seg_lens, seg_starts, real_seg_lens, sys_inds
 
 
 def add_backstories(config, sim_objs, segments, mask_idx, sys_appear, sys_choices, seg_starts, real_seg_lens, test=False):
+
     n_masks = 0 #number of sys that have been masked
     i = 0 #segment number in interleaved segments
-    print(f"segments.shape: {segments.shape}, config.n_positions: {config.n_positions} before adding backstories")
-    while i < len(seg_starts):
+
+    #if config.mask_only_init is True only have the while loop run when i == 0
+    while i < len(seg_starts) and (not config.mask_only_init or i == 0):
         if sys_choices[i] not in sys_appear and real_seg_lens[i] > 0: #if the system has not appeared before and the segment length is greater than 0
-            print(f"i: {i} sys_choices[i]: {sys_choices[i]} sys_appear: {sys_appear}")
             sys_appear.append(sys_choices[i])
             A = sim_objs[sys_choices[i]].A
 
@@ -482,7 +481,6 @@ def add_backstories(config, sim_objs, segments, mask_idx, sys_appear, sys_choice
             zeros = np.zeros((backstory.shape[0], 2*config.max_sys_trace + 1))
             backstory = np.concatenate((zeros, backstory), axis=1)
 
-            print(f"backstory.shape: {backstory.shape}, segments.shape: {segments.shape} before adding backstories")
 
             #create new_segments where it is everything from segments from x0_ind to the end is shifted to the right by config.backstory_len
             new_segments = np.zeros((segments.shape[0] + config.backstory_len, config.ny + 2*config.max_sys_trace + 2))
@@ -490,7 +488,6 @@ def add_backstories(config, sim_objs, segments, mask_idx, sys_appear, sys_choice
             new_segments[x0_ind + config.backstory_len:, :] = segments[x0_ind:, :]
             new_segments[x0_ind:x0_ind + config.backstory_len, :] = backstory
 
-            print(f"new_segments.shape: {new_segments.shape}, segments.shape: {segments.shape} after adding backstories")
             segments = new_segments
             n_masks += 1
 

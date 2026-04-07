@@ -37,6 +37,7 @@ class GPT2(BaseModel):
         self.n_positions = n_positions
         self.n_dims_in = n_dims_in
         self.n_dims_out = n_dims_out
+        self.n_head = n_head
         self._read_in = nn.Linear(n_dims_in, n_embd)
 
         if config.model_type == "GPT2":
