@@ -643,7 +643,6 @@ class FilterDataset(Dataset):
                         raise NotImplementedError("init_seg is not implemented yet")
                     
                     entry = {"current": segments[:-1, :], "target": segments[1:, 2*config.max_sys_trace + 2:]} #create the entry dictionary with the current and target segments, where the target segment has only the config.ny columns
-                    entry["orig_segments"] = orig_segments #add the original segments to the entry dictionary
                     entry["mask_idx"] = mask_idx #add the mask indices to the entry dictionary
 
                 elif config.cached_data:

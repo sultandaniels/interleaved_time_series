@@ -26,12 +26,15 @@ class DataModuleWrapper(pl.LightningDataModule):
 
     def train_dataloader(self):
 
+        # shuffle=False because __getitem__ samples randomly via populate_traces
+        # (idx is unused). shuffle=True on the inflated dataset length causes
+        # torch.randperm(6.4B) which allocates ~48 GB and OOMs.
         if config.mem_suppress:
             if config.masking or not (config.cached_data or config.masking):
                 return DataLoader(
                     self.train_ds,
                     batch_size=config.batch_size,
-                    shuffle=True,
+                    shuffle=False,
                     num_workers=config.train_data_workers,
                     persistent_workers=True,
                     pin_memory=True,
@@ -42,7 +45,7 @@ class DataModuleWrapper(pl.LightningDataModule):
                 return DataLoader(
                     self.train_ds,
                     batch_size=config.batch_size,
-                    shuffle=True,
+                    shuffle=False,
                     num_workers=config.train_data_workers,
                     persistent_workers=True,
                     pin_memory=True,
@@ -52,7 +55,7 @@ class DataModuleWrapper(pl.LightningDataModule):
             return DataLoader(
                 self.train_ds,
                 batch_size=config.batch_size,
-                shuffle=True,
+                shuffle=False,
                 num_workers=config.train_data_workers,
                 persistent_workers=True,
                 pin_memory=True,

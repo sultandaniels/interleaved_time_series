@@ -106,30 +106,38 @@ class Mamba2(BaseModel):
                 #create a mask to identify rows of ys that are all zeros and also all indices from the list of lists input_dict["mask_idx"]
                 #ys is of shape [batch_size, seq_len, dims]
                 mask_all_zeros = torch.all(ys == 0, dim=-1, keepdim=True)  # [batch_size, seq_len, 1]
-                
+
                 mask_selected_indices = torch.zeros_like(mask_all_zeros, dtype=torch.bool)
                 for b, idx_list in enumerate(input_dict["mask_idx"]):
                     mask_idx_minus_1 = [int(idx) - 1 for idx in idx_list]
-                    mask_selected_indices[b, mask_idx_minus_1, :] = True #since the target has one less entry than the full seqment we need to subtract 1 from the index
+                    mask_selected_indices[b, mask_idx_minus_1, :] = True #since the target has one less entry than the full segment we need to subtract 1 from the index
+
+                # Log loss on masked indices before zeroing them out
+                if mask_selected_indices.any():
+                    masked_res = res_sq[mask_selected_indices.expand_as(res_sq)]
+                    loss_masked_indices = masked_res.mean()
+                else:
+                    loss_masked_indices = torch.tensor(0.0, device=res_sq.device)
 
                 mask = mask_all_zeros | mask_selected_indices #combine the two masks with a logical OR
 
             else:
+                loss_masked_indices = None
                 # Create a mask to identify rows of ys that are all zeros
                 mask = torch.all(ys == 0, dim=-1, keepdim=True)
-            
+
             # Apply the mask to res_sq to disregard the residuals for rows of ys that are all zeros
             res_sq = res_sq.masked_fill(mask, 0)
 
             output_dict = {"loss_mse": torch.sum(res_sq) / (~mask).sum()} #mean squared error loss
+            if loss_masked_indices is not None:
+                output_dict["metric_masked_indices_mse"] = loss_masked_indices
         else:
             output_dict = {"loss_mse": torch.mean(res_sq)}
-            
 
-        # Calculate metrics
+        # Per-timestep MSE (averaged across batch and dims)
         for i in range(ys.shape[1]):
-            for j in range(ys.shape[2]):
-                output_dict[f"metric_mse_ts{i}_dim_{j}"] = torch.mean(res_sq[:, i, j])
+            output_dict[f"metric_mse_timestep_{i}"] = torch.mean(res_sq[:, i, :])
 
         return output_dict
 

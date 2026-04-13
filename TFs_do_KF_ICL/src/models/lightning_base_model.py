@@ -18,8 +18,8 @@ class BaseModel(pl.LightningModule):
     def log_output_dct(self, output_dict, typ):
         for k in output_dict:
             if "loss" in k or "metric" in k:
-                self.log(typ+"_"+k, output_dict[k], on_step=True, on_epoch=True,
-                         prog_bar=True, logger=True, sync_dist=True, batch_size=config.batch_size) #added sync_dist=True for distributed training
+                self.log(typ+"_"+k, output_dict[k], on_step=True, on_epoch=False,
+                         prog_bar=("loss" in k), logger=True, sync_dist=True, batch_size=config.batch_size) #added sync_dist=True for distributed training
 
         if hasattr(config, "loss_weighting_strategy") and config.loss_weighting_strategy in ["gradnorm", "my_gradnorm"] and typ == "train":
             for name, param in self.loss_weighting_strategy.lw_dict.items():
@@ -42,12 +42,14 @@ class BaseModel(pl.LightningModule):
         #     np.savez_compressed(os.path.join(train_data_path, filename),
         #                        orig_segments=input_dict["orig_segments"].cpu().numpy())
 
-        intermediate_dict, output_dict = self(
-            input_dict, batch_idx=batch_idx, return_intermediate_dict=True)
+        output_dict = self(input_dict, batch_idx=batch_idx, return_intermediate_dict=False)
         self.log_output_dct(output_dict, "train")
-        return {"loss": output_dict["optimized_loss"],
-                "intermediate_dict": intermediate_dict,
-                "output_dict": output_dict}
+        return output_dict["optimized_loss"]
+
+    def on_before_optimizer_step(self, optimizer):
+        total_norm = torch.nn.utils.clip_grad_norm_(self.parameters(), float('inf'))
+        self.log("grad_norm", total_norm, on_step=True, on_epoch=False,
+                 prog_bar=False, logger=True)
 
     def on_after_backward(self):
         if hasattr(config, "loss_weighting_strategy") and config.loss_weighting_strategy in ["gradnorm", "my_gradnorm"]:

@@ -28,8 +28,8 @@ import resource
 print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
 os.environ["WANDB_SILENT"] = "true"
 
-#set a global variable for the path "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/" "/data/shared/ICL_Kalman_Experiments/"
-BASE_PATH = "/data/shared/ICL_Kalman_Experiments/"
+#set a global variable for the path "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/" "/data/shared/ICL_Kalman_Experiments/" "/media/volume/ICL_Kalman_Experiments/"
+BASE_PATH = "/media/volume/ICL_Kalman_Experiments/"
 os.environ["BASE_PATH"] = BASE_PATH
 
 
@@ -58,7 +58,7 @@ def wandb_train(config, config_dict, model, ckpt_dir, train_mix_dist=False, trai
         project="transformer_kalman_no_sweep",
         # Track hyperparameters and run metadata
         config=config_dict,
-        mode="disabled",
+        mode="online",
         settings=wandb.Settings(_disable_stats=False, _disable_meta=False, init_timeout=300)
     )
     train_time = train_gpt2(model, config, ckpt_dir, train_mix_dist=train_mix_dist, train_mix_state_dim=train_mix_state_dim) # train the model

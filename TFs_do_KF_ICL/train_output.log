@@ -1,0 +1,120 @@
+/home/exouser/interleaved_time_series/TFs_do_KF_ICL/src
+Using device: cuda
+/home/exouser/interleaved_time_series/TFs_do_KF_ICL/src
+Using device: cuda
+CUDA_VISIBLE_DEVICES: None
+saved preds arg False
+make preds arg False
+tf arg False
+resume train arg False
+train conv arg False
+multi_haystack arg False
+kfnorm arg False
+olsnorm arg False
+t_conv_plot arg False
+logscale arg False
+logscale_an arg False
+train_mix_dist arg False
+train_mix_state_dim: False
+train_mix_C: False
+part_train_set arg False
+model_name arg None
+abs arg False
+desktop arg False
+datasource arg val
+late_start arg None
+last_ckpt arg False
+zero_cut arg False
+paren_swap arg False
+fix_needle arg False
+opposite_ortho arg False
+only_needle_pos arg False
+same_tokens arg False
+irrelevant_tokens arg False
+ortho_haar arg False
+ortho arg False
+only_beg arg False
+only_fin arg False
+acc arg False
+ortho_sync arg False
+new_hay_insert arg False
+hard_coded_ckpt arg None
+multi_cut_val arg False
+dataset_typ arg None
+all_steps_in arg False
+haystack_len arg None
+plateau arg False
+identical_haystack arg False
+repeat_haystack arg False
+len_seg_haystack arg 10
+fake out arg False
+Creating new key: acc
+Creating new key: multi_cut_val
+Creating new key: late_start
+Creating new key: paren_swap
+Creating new key: same_tokens
+Creating new key: irrelevant_tokens
+Creating new key: fix_needle
+Creating new key: new_hay_insert
+Creating new key: opposite_ortho
+Creating new key: only_beg
+Creating new key: only_fin
+Creating new key: plateau
+Creating new key: identical_haystack
+Creating new key: repeat_haystack
+Creating new key: fake_out
+
+device: cuda
+model dtype: torch.bfloat16
+model: GPT2(
+  (_read_in): Linear(in_features=57, out_features=192, bias=True)
+  (_backbone): GPT2Model(
+    (wte): Embedding(50257, 192)
+    (wpe): Embedding(2048, 192)
+    (drop): Dropout(p=0.0, inplace=False)
+    (h): ModuleList(
+      (0-23): 24 x GPT2Block(
+        (ln_1): LayerNorm((192,), eps=1e-05, elementwise_affine=True)
+        (attn): GPT2SdpaAttention(
+          (c_attn): Conv1D()
+          (c_proj): Conv1D()
+          (attn_dropout): Dropout(p=0.0, inplace=False)
+          (resid_dropout): Dropout(p=0.0, inplace=False)
+        )
+        (ln_2): LayerNorm((192,), eps=1e-05, elementwise_affine=True)
+        (mlp): GPT2MLP(
+          (c_fc): Conv1D()
+          (c_proj): Conv1D()
+          (act): NewGELUActivation()
+          (dropout): Dropout(p=0.0, inplace=False)
+        )
+      )
+    )
+    (ln_f): LayerNorm((192,), eps=1e-05, elementwise_affine=True)
+  )
+  (_read_out): Linear(in_features=192, out_features=5, bias=True)
+)
+model.num_heads: 12
+in output_dir is None
+os.path.isdir(output_dir) True
+batch_size: 320
+train_steps: 10080000
+number of epochs: 1
+context length: 250
+num_tasks: 40000
+Traceback (most recent call last):
+  File "/home/exouser/interleaved_time_series/TFs_do_KF_ICL/src/data_train.py", line 4335, in <module>
+    wandb_train(config, config_dict, model, ckpt_dir, train_mix_dist=train_mix_dist, train_mix_state_dim=train_mix_state_dim) # train the model
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/exouser/interleaved_time_series/TFs_do_KF_ICL/src/data_train.py", line 64, in wandb_train
+    train_time = train_gpt2(model, config, ckpt_dir, train_mix_dist=train_mix_dist, train_mix_state_dim=train_mix_state_dim) # train the model
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/exouser/interleaved_time_series/TFs_do_KF_ICL/src/train.py", line 70, in train_gpt2
+    datamodule = DataModuleWrapper(config, FilterDataset(main_dir + f"/{config.dataset_typ}/train_{config.dataset_typ}{config.C_dist}" + f"_state_dim_{config.nx}" + ("_dist_mix" if train_mix_dist else "") + ("_state_dim_mix" if train_mix_state_dim else "") + ".pkl"), val_dset)
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/exouser/interleaved_time_series/TFs_do_KF_ICL/src/datasources/filter_dataset.py", line 535, in __init__
+    self.load(path)
+  File "/home/exouser/interleaved_time_series/TFs_do_KF_ICL/src/datasources/filter_dataset.py", line 547, in load
+    with open(path, "rb") as f:
+         ^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/exouser/ICL_Kalman_Experiments/train_and_test_data/ortho_haar/train_ortho_haar_ident_C_state_dim_5.pkl'
