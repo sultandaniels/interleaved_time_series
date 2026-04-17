@@ -1025,17 +1025,20 @@ def generate_interleaved_traces(config, ys, sim_objs, num_trials):
     else:
         interleaving = f"multi_cut"
 
-    interleave_traces_dict_path = os.path.join(f"{BASE_PATH}train_and_test_data/{config.dataset_typ}/" + f"{config.datasource}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("identical_haystack_" if config.identical_haystack else "")+ ("repeat_haystack_" if config.repeat_haystack else "")+ f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
+    datasource_prefix = "backstory_train_init" if config.datasource == "backstory_train" and config.mask_only_init else config.datasource
+    interleave_traces_dict_path = os.path.join(f"{BASE_PATH}train_and_test_data/{config.dataset_typ}/" + f"{datasource_prefix}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("identical_haystack_" if config.identical_haystack else "")+ ("repeat_haystack_" if config.repeat_haystack else "")+ ("iid_gaussian_" if config.iid_gaussian else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
 
     # raise ValueError(f"interleave_traces_dict_path: {interleave_traces_dict_path} does not exist. Please create it before running this function.")
 
     #check if the file already exists
+    saved_n_positions = config.n_positions
     if not os.path.exists(interleave_traces_dict_path):
 
         start = time.time()
         for ex in range(num_exs):
 
             start_ex = time.time()
+            config.override("n_positions", saved_n_positions)  # restore base before each call
             multi_sys_ys, sys_choices_per_config, sys_dict_per_config, tok_seg_lens_per_config, seg_starts_per_config, real_seg_lens_per_config, sys_inds_per_config = interleave_traces(config, ys, num_test_traces_configs=config.num_test_traces_configs, num_trials=num_trials, ex=ex, sim_objs=sim_objs)
 
             if interleave_traces_dict.get("multi_sys_ys") is None:
@@ -1072,6 +1075,14 @@ def generate_interleaved_traces(config, ys, sim_objs, num_trials):
 
     else:
         print(f"interleave_traces_dict already exists at {interleave_traces_dict_path}\n")
+        # inflate n_positions for backstory_train even when using cached data
+        if config.datasource == "backstory_train":
+            if config.mask_only_init:
+                config.override("n_positions", config.n_positions + config.backstory_len)
+            else:
+                config.override("n_positions", config.n_positions + config.backstory_len*config.num_sys_haystack)
+                if config.new_hay_insert:
+                    config.override("n_positions", config.n_positions + config.backstory_len)
 
     return interleave_traces_dict_path
 
@@ -2280,6 +2291,8 @@ def set_config_params(config, model_name):
         config.override("init_seg", False) #use masked initial segments
         config.override("backstory_len", config.ny + 2) #length of the backstory
         config.override("mask_budget", 10) #max # of systems that will be masked on first appearance (alpha)
+        config.override("iid_gaussian", False)
+        config.override("random_mask", False)
         
         # Training settings
         config.override("devices", [2,3])  # which GPU
@@ -2331,6 +2344,8 @@ def set_config_params(config, model_name):
         config.override("init_seg", False) #use masked initial segments
         config.override("backstory_len", config.ny + 2) #length of the backstory
         config.override("mask_budget", 10) #max # of systems that will be masked on first appearance (alpha)
+        config.override("iid_gaussian", False)
+        config.override("random_mask", False)
         
         # Training settings
         config.override("devices", [0])  # which GPU
@@ -3022,7 +3037,7 @@ def set_config_params(config, model_name):
     elif model_name == "ortho_haar_big_mask_backstory_init_broken":
         experiment_name = "init_260311_133721.8ea456_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000"
 
-        print("\n\nORTHO HAAR BIG MASK BACKSTORY INIT SEG\n\n")
+        print("\n\nORTHO HAAR BIG MASK BACKSTORY INIT SEG BROKEN\n\n")
 
         # Dataset settings
         config.override("num_tasks", 40000)  # number of training systems
@@ -3044,9 +3059,11 @@ def set_config_params(config, model_name):
         config.override("cached_data", False) #use masked backstories
         config.override("backstory", True) #use masked backstories
         config.override("mask_only_init", True) #only mask the initial segments of the backstory")
-        config.override("init_seg", False) #use masked initial segments
         config.override("backstory_len", config.ny + 2) #length of the backstory
         config.override("mask_budget", 10) #max # of systems that will be masked on first appearance (alpha)
+        config.override("iid_gaussian", False)
+        config.override("random_mask", False)
+
 
         # Training settings
         config.override("devices", [0,1])  # which GPU
@@ -3071,8 +3088,62 @@ def set_config_params(config, model_name):
         
         config.override("learning_rate", np.sqrt((len(config.devices) * config.batch_size)/512)*(0.833333333)*1.584893192461114e-05)
 
-    elif model_name == "ortho_haar_big_mask_backstory_init":
+    elif model_name == "ortho_haar_big_mask_backstory_init_broken2":
         experiment_name = "backstory_masked_init_260413_024320.5a059c_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000"
+
+        print("\n\nORTHO HAAR BIG MASK BACKSTORY INIT SEG BROKEN2\n\n")
+
+        # Dataset settings
+        config.override("num_tasks", 40000)  # number of training systems
+        config.override("num_val_tasks", 100)  # number of test systems
+        config.override("dataset_typ", "ortho_haar")  # "unifA" #"gaussA" #"gaussA_noscale" #"rotDiagA" #"rotDiagA_unif" #"rotDiagA_gauss" #"upperTriA" #"single_system" #"cond_num" #"upperTriA_gauss" #"ident" #"ortho"
+        config.override("max_cond_num", 100)
+        config.override("distinct_cond_nums", 10)
+        config.override("val_dataset_typ", "ortho_haar")  # "unifA" #"gaussA" #"gaussA_noscale" #"rotDiagA" #"rotDiagA_unif" #"rotDiagA_gauss" #"upperTriA" #"single_system" #"cond_num" #"ident" #"ortho"
+        config.override("C_dist", "_ident_C")  # "_unif_C" #"_gauss_C" #"_gauss_C_large_var" #"_single_system" #"upperTriA_gauss" #"_ident_C"
+        config.override("nx", 5)
+        config.override("ny", 5)
+        config.override("n_noise", 1)
+        config.override("num_traces", {"train": 1, "val": 1000})
+        config.override("changing", False)  # used only for plotting
+
+        #mem_suppress experiment settings
+        config.override("mem_suppress", True) #run the memory suppression experiment
+        config.override("masking", True) #run the masking training run
+        config.override("cached_data", False) #use masked backstories
+        config.override("backstory", True) #use masked backstories
+        config.override("mask_only_init", True) #only mask the initial segments of the backstory")
+        config.override("init_seg", False) #use masked initial segments
+        config.override("backstory_len", config.ny + 2) #length of the backstory
+        config.override("mask_budget", 10) #max # of systems that will be masked on first appearance (alpha)
+        config.override("iid_gaussian", False)
+        config.override("random_mask", False)
+
+        # Training settings
+        config.override("devices", [0])  # which GPU
+        config.override("train_steps", 1008000)  # number of training steps (27000x3 = 81000 effective single GPU iterations) (num_tasks*num_traces[train])/batch_size
+        config.override("num_epochs", 1)  # minimum number of epochs to train for
+        config.override("train_int",1000)  # number of steps between logging (train interval)
+        config.override("use_true_len", False)  # Flag for a dataset length to be num_tasks
+        config.override("batch_size", 8*40*2)  # 2048 #512 #usually 512 (~35GB) tune this to fit into GPU memory
+        config.override("train_data_workers", 31)  # set to 1 (check if it changes the speed of the training process)
+        config.override("test_batch_size", 512)
+        config.override("test_data_workers", 7)  # keep at 1
+
+        # Model settings
+        config.override("model_type", "GPT2")  # "GPT2" #"transfoXL" #"olmo"
+        config.override("use_pos_emb", True)  # use positional embeddings
+        config.override("n_positions", 250 - config.mask_budget*config.backstory_len if config.mem_suppress and not config.masking else 250)  # 500 for extended OLS #250 #context length
+        config.override("n_embd", 192)
+        config.override("n_layer", 24)
+        config.override("n_head", 12)
+        config.override("n_dims_in", int(config.ny + (2 * config.max_sys_trace) + 2) if config.multi_sys_trace else config.ny)  # input dimension is the observation dimension + special token parentheses + special start token + payload identifier
+        config.override("n_dims_out", 5)  # (IMPORTANT TO KEEP THIS AT 5 FOR NOW) TODO: this used to be 10 but needs to be fixed to match lin_sys.yaml
+        
+        config.override("learning_rate", np.sqrt((len(config.devices) * config.batch_size)/512)*(0.833333333)*1.584893192461114e-05)
+
+    elif model_name == "ortho_haar_big_mask_backstory_init":
+        experiment_name = "backstory_masked_init_260414_032856.5a059c_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000"
 
         print("\n\nORTHO HAAR BIG MASK BACKSTORY INIT SEG\n\n")
 
@@ -3099,6 +3170,8 @@ def set_config_params(config, model_name):
         config.override("init_seg", False) #use masked initial segments
         config.override("backstory_len", config.ny + 2) #length of the backstory
         config.override("mask_budget", 10) #max # of systems that will be masked on first appearance (alpha)
+        config.override("iid_gaussian", False)
+        config.override("random_mask", False)
 
         # Training settings
         config.override("devices", [0])  # which GPU
@@ -3151,6 +3224,8 @@ def set_config_params(config, model_name):
         config.override("init_seg", False) #use masked initial segments
         config.override("backstory_len", config.ny + 2) #length of the backstory
         config.override("mask_budget", 10) #max # of systems that will be masked on first appearance (alpha)
+        config.override("iid_gaussian", False)
+        config.override("random_mask", False)
 
         # Training settings
         config.override("devices", [0,1])  # which GPU
@@ -3202,6 +3277,8 @@ def set_config_params(config, model_name):
         config.override("init_seg", False) #use masked initial segments
         config.override("backstory_len", config.ny + 2) #length of the backstory
         config.override("mask_budget", 10) #max # of systems that will be masked on first appearance (alpha)
+        config.override("iid_gaussian", False)
+        config.override("random_mask", False)
 
         # Training settings
         config.override("devices", [0])  # which GPU
@@ -3254,6 +3331,8 @@ def set_config_params(config, model_name):
         config.override("init_seg", False) #use masked initial segments
         config.override("backstory_len", config.ny + 2) #length of the backstory
         config.override("mask_budget", 10) #max # of systems that will be masked on first appearance (alpha)
+        config.override("iid_gaussian", False)
+        config.override("random_mask", False)
 
         # Training settings
         config.override("devices", [0])  # which GPU
@@ -3305,6 +3384,8 @@ def set_config_params(config, model_name):
         config.override("init_seg", False) #use masked initial segments
         config.override("backstory_len", config.ny + 2) #length of the backstory
         config.override("mask_budget", 10) #max # of systems that will be masked on first appearance (alpha)
+        config.override("iid_gaussian", False)
+        config.override("random_mask", False)
 
         # Training settings
         config.override("devices", [0])  # which GPU
@@ -3994,9 +4075,10 @@ if __name__ == '__main__':
         else:
             ckpt = 4000 #default checkpoint to use for predictions
 
-        ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_masked_260301_222901.014897_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1e-05_num_train_sys_40000/checkpoints/step=37000.ckpt" #backstory mask only init seg
+        ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_masked_init_260414_032856.5a059c_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=95000.ckpt" #backstory mask only init seg
 
-        
+        # ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_masked_260301_222901.014897_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1e-05_num_train_sys_40000/checkpoints/step=37000.ckpt" #backstory mask only init seg
+
         # ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=31000.ckpt" #normal big training run
 
         # ckpt_path = f"{BASE_PATH}model_checkpoints/GPT2/backstory_masked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/checkpoints/step=139000.ckpt" #masked_backstories
@@ -4119,7 +4201,8 @@ if __name__ == '__main__':
                     config.override("n_positions", (config.len_seg_haystack + 2)*(num_sys+1) + 3)
                 else:
                     config.override("n_positions", (config.len_seg_haystack + 2)*(num_sys+1))
-                
+                base_n_positions_for_num_sys = config.n_positions  # save base before any backstory inflation
+
                 if not make_preds:
 
                     print("not making predictions")
@@ -4268,6 +4351,7 @@ if __name__ == '__main__':
 
                     print(f"config.use_pos_emb: {config.use_pos_emb}")
                     kal_step = predict_all_checkpoints(config, ckpt_dir, output_dir, logscale, ys, sim_objs, model_name)
+                    config.override("n_positions", base_n_positions_for_num_sys)  # restore base after train_conv
 
                     print(f"plotting train_conv convergence plots for haystack len {num_sys}")
                     pred_ckpt_step = haystack_plots_train_conv_full(config, model_name, num_sys, output_dir, ckpt_dir, experiment_name, ckpt_pred_steps, kal_step, steps_in, colors, compute_more=make_preds, abs_err=abs_err)
@@ -4303,14 +4387,17 @@ if __name__ == '__main__':
                             #run non train_conv
                             config.override("num_test_traces_configs", num_sys)
 
+                            config.override("n_positions", base_n_positions_for_num_sys)  # ensure base before backstory inflation
                             interleaved_traces_dict_path = generate_interleaved_traces(config, ys, sim_objs, num_trials)
                             run_preds, run_deg_kf_test, excess, shade = preds_thread(config, ckpt_path, make_preds, resume_train, train_conv=False, logscale=logscale, tf=tf, train_mix_dist=train_mix_dist, train_mix_state_dim=train_mix_state_dim, ys=ys, sim_objs=sim_objs, output_dir=output_dir)
+                            config.override("n_positions", base_n_positions_for_num_sys)  # restore base
 
                             #run no punctuation final segment
                             config.override("needle_final_seg_extended", True)
                             interleaved_traces_dict_path = generate_interleaved_traces(config, ys, sim_objs, num_trials)
 
                             run_preds, run_deg_kf_test, excess, shade = preds_thread(config, ckpt_path, make_preds, resume_train, train_conv=False, logscale=logscale, tf=tf, train_mix_dist=train_mix_dist, train_mix_state_dim=train_mix_state_dim, ys=ys, sim_objs=sim_objs, output_dir=output_dir)
+                            config.override("n_positions", base_n_positions_for_num_sys)  # restore base
                     
                             # if last_ckpt is not None:
                             #     last_ckpt_step = last_ckpt.split("=")[1].split(".")[0]

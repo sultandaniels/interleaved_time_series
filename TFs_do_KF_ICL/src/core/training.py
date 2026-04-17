@@ -2,6 +2,8 @@ import logging
 import time
 import hashlib
 import os
+import subprocess
+import sys
 import numpy as np
 
 from core import Config
@@ -11,6 +13,50 @@ from pytorch_lightning import callbacks as pl_callbacks
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.loggers import CSVLogger
 from pytorch_lightning.callbacks import DeviceStatsMonitor
+
+
+class WandbCacheCleanupCallback(pl_callbacks.Callback):
+    """Periodically trim the local wandb artifact cache so long runs don't fill the root disk.
+
+    `WandbLogger(log_model="all")` uploads every checkpoint as an artifact and caches
+    it under ~/.cache/wandb/artifacts. `wandb artifact cache cleanup <target>` removes
+    entries above the target size, keeping the most recently used.
+    """
+
+    def __init__(self, target_size: str = "1GB"):
+        super().__init__()
+        self.target_size = target_size
+
+    def _cleanup(self, step):
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "wandb", "artifact", "cache", "cleanup", self.target_size],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if result.returncode != 0:
+                logger.warning(
+                    f"wandb cache cleanup at step {step} exited {result.returncode}: "
+                    f"{result.stderr.strip()[:500]}"
+                )
+            else:
+                logger.info(f"wandb cache cleaned at step {step} (target {self.target_size})")
+        except Exception as e:
+            logger.warning(f"wandb cache cleanup at step {step} raised: {e}")
+
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+        if trainer.global_rank != 0:
+            return
+        step = trainer.global_step
+        if step > 0 and step % config.train_int == 0:
+            self._cleanup(step)
+
+    def on_train_end(self, trainer, pl_module):
+        if trainer.global_rank != 0:
+            return
+        self._cleanup(trainer.global_step)
 # from log_scale_checkpoints import LogScaleCheckpoint
 
 # Setup logger
@@ -30,7 +76,7 @@ def setup_train(model, train_mix_dist=False, train_mix_state_dim=False):
                       
         timestamp = time.strftime('%y%m%d_%H%M%S') + '.' + hashlib.md5(config.get_full_yaml().encode('utf-8')).hexdigest()[:6]
 
-        experiment_name = ("init_" if config.masking and config.mask_only_init else "") + timestamp + ("_multi_sys_trace" if config.multi_sys_trace else "") + ("_zero_cut" if config.zero_cut else "") + f"_{config.dataset_typ}_state_dim_{config.nx}{config.C_dist}" + ("_dist_mix" if train_mix_dist else "") + ("_state_dim_mix" if train_mix_state_dim else "") + "_lr_" + str(config.learning_rate) + "_num_train_sys_" + str(config.num_tasks)
+        experiment_name = (f"back_len_{config.backstory_len}_" if config.masking and config.backstory_len != config.ny+2 else "") + ("iid_gaussian_" if config.masking and config.iid_gaussian else "")+ ("init_" if config.masking and config.mask_only_init else "") + timestamp + ("_multi_sys_trace" if config.multi_sys_trace else "") + ("_zero_cut" if config.zero_cut else "") + f"_{config.dataset_typ}_state_dim_{config.nx}{config.C_dist}" + ("_dist_mix" if train_mix_dist else "") + ("_state_dim_mix" if train_mix_state_dim else "") + "_lr_" + str(config.learning_rate) + "_num_train_sys_" + str(config.num_tasks)
 
         if config.mem_suppress:
             experiment_name = mem_suppress_ckpt_path(config, experiment_name, 0)
@@ -121,10 +167,10 @@ def get_callbacks_and_loggers_new_eig(model, output_dir, emb_dim): #add emb_dim 
     return callbacks, loggers
 
 def mem_suppress_ckpt_path(config, output_dir, experiment_ind=59):
-    if "mask" in output_dir or "backstory" in output_dir or "init_seg" in output_dir:
+    if "mask" in output_dir or "backstory" in output_dir in output_dir:
         if config.plateau:
             output_dir = f"{output_dir[:experiment_ind]}plateau_{output_dir[experiment_ind:]}"
-        print("output_dir already has mask or backstory or init_seg")
+        print("output_dir already has mask or backstory")
         return output_dir
     if config.masking:
         output_dir = f"{output_dir[:experiment_ind]}masked_{output_dir[experiment_ind :]}"
@@ -132,17 +178,9 @@ def mem_suppress_ckpt_path(config, output_dir, experiment_ind=59):
         output_dir = f"{output_dir[:experiment_ind]}unmasked_{output_dir[experiment_ind:]}"
 
     if config.backstory:
-        if config.init_seg:
-            raise ValueError("Cannot have both backstory and init_seg")
-        else:
-            output_dir = f"{output_dir[:experiment_ind]}backstory_{output_dir[experiment_ind:]}"
-    elif config.init_seg:
-        if config.backstory:
-            raise ValueError("Cannot have both backstory and init_seg")
-        else:
-            output_dir = f"{output_dir[:experiment_ind]}init_seg_{output_dir[experiment_ind:]}"
+        output_dir = f"{output_dir[:experiment_ind]}backstory_{output_dir[experiment_ind:]}"
     else:
-        raise ValueError("No backstory or init_seg specified")
+        raise ValueError("No backstory specified")
     
     if config.plateau:
         output_dir = f"{output_dir[:experiment_ind]}plateau_{output_dir[experiment_ind:]}"
@@ -162,24 +200,6 @@ def get_callbacks_and_loggers(config, output_dir, train_int): #add emb_dim as a 
 
     if config.mem_suppress: #create new dir for mem suppress checkpoints
         output_dir = mem_suppress_ckpt_path(config, output_dir, experiment_ind)
-        # if config.masking:
-        #     output_dir = f"{output_dir[:experiment_ind]}masked_{output_dir[experiment_ind :]}"
-        # else:
-        #     output_dir = f"{output_dir[:experiment_ind]}unmasked_{output_dir[experiment_ind:]}"
-
-        # print(f"output_dir: {output_dir}")
-        # if config.backstory:
-        #     if config.init_seg:
-        #         raise ValueError("Cannot have both backstory and init_seg")
-        #     else:
-        #         output_dir = f"{output_dir[:experiment_ind]}backstory_{output_dir[experiment_ind:]}"
-        # elif config.init_seg:
-        #     if config.backstory:
-        #         raise ValueError("Cannot have both backstory and init_seg")
-        #     else:
-        #         output_dir = f"{output_dir[:experiment_ind]}init_seg_{output_dir[experiment_ind:]}"
-        # else:
-        #     raise ValueError("No backstory or init_seg specified")
         
         os.makedirs(output_dir, exist_ok=True)
 
@@ -205,7 +225,9 @@ def get_callbacks_and_loggers(config, output_dir, train_int): #add emb_dim as a 
             ckpt_path.split(os.path.sep)[-1]))
         
 
-    callbacks = [checkpoint_callback, lr_monitor, DeviceStatsMonitor(cpu_stats=True)]
+    wandb_cache_cleanup = WandbCacheCleanupCallback()
+
+    callbacks = [checkpoint_callback, lr_monitor, DeviceStatsMonitor(cpu_stats=True), wandb_cache_cleanup]
     return callbacks, loggers
 
 

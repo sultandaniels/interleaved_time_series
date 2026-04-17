@@ -34,11 +34,11 @@ class Config(object, metaclass=Singleton):
     mem_suppress = True #run the memory suppression experiment
     masking = True #run the masking training run
     random_mask = False #randomly mask indices in each system's first appearance instead of the first backstory_len indices
-    iid_gaussian = False #use i.i.d. Gaussian noise as backstory
+    iid_gaussian = True #use i.i.d. Gaussian noise as backstory
     cached_data = False #use cached data
     backstory = True #use backstories
     mask_only_init = False #only mask the initial segment
-    backstory_len = 1#ny + 2 #length of the backstory
+    backstory_len = ny + 2 #length of the backstory
     mask_budget = 10 #max # of systems that will be masked on first appearance (alpha)
 
     #experiment settings

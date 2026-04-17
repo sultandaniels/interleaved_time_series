@@ -1713,11 +1713,7 @@ def compute_errors_needle(config, model, ys, sim_objs, errs_dir, errs_loc, ex=No
     # print(f"\n err_lss does not exist yet for step {ckpt_steps}")
 
 
-    multi_sys_ys_context_len = config.n_positions + 1
-
-    if config.datasource == "backstory_train":
-        multi_sys_ys_context_len += config.backstory_len*min(config.num_sys_haystack,10)
-
+    multi_sys_ys_context_len = config.n_positions + 1  # n_positions already includes backstory overhead
 
     multi_sys_ys = np.zeros((num_test_traces_configs, num_trials, multi_sys_ys_context_len, config.ny + 2*config.max_sys_trace + 2)).astype(np.float32) #set up the array to hold the test traces
         
@@ -1891,12 +1887,7 @@ def compute_errors_needle_or_multi_cut(config, model, sim_objs, errs_dir, errs_l
     # print(f"\n err_lss does not exist yet for step {ckpt_steps}")
 
 
-    multi_sys_ys_context_len = config.n_positions + 1
-
-    if config.datasource == "backstory_train":
-        multi_sys_ys_context_len += config.backstory_len*config.num_sys_haystack
-        if config.new_hay_insert:
-            multi_sys_ys_context_len += config.backstory_len
+    multi_sys_ys_context_len = config.n_positions + 1  # n_positions already includes backstory overhead
 
     # path to interleaved data file
     if config.needle_in_haystack:
@@ -1917,7 +1908,8 @@ def compute_errors_needle_or_multi_cut(config, model, sim_objs, errs_dir, errs_l
     #load multi_sys_ys from interleaved_traces file
     # interleave_traces_dict_path = os.path.join(f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/{dataset_typ}/" + f"{config.datasource}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + f"interleaved_traces_{dataset_typ}{config.C_dist}_{interleaving}.pkl")
 
-    interleave_traces_dict_path = os.path.join(f"{os.environ.get('BASE_PATH')}train_and_test_data/{config.dataset_typ}/" + f"{config.datasource}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "")+ ("identical_haystack_" if config.identical_haystack else "") + ("repeat_haystack_" if config.repeat_haystack else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
+    datasource_prefix = "backstory_train_init" if config.datasource == "backstory_train" and config.mask_only_init else config.datasource
+    interleave_traces_dict_path = os.path.join(f"{os.environ.get('BASE_PATH')}train_and_test_data/{config.dataset_typ}/" + f"{datasource_prefix}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "")+ ("identical_haystack_" if config.identical_haystack else "") + ("repeat_haystack_" if config.repeat_haystack else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
 
     with open(interleave_traces_dict_path, "rb") as f:
         interleave_traces_dict = pickle.load(f)
@@ -2064,9 +2056,12 @@ def interleave_traces(config, ys, num_test_traces_configs, num_trials, ex=None, 
     elif config.datasource == "train" or config.datasource == "backstory_train":
         num_trials = config.num_traces["train"]
         if config.datasource == "backstory_train":
-            config.override("n_positions", config.n_positions + config.backstory_len*config.num_sys_haystack)
-            if config.new_hay_insert:
+            if config.mask_only_init:
                 config.override("n_positions", config.n_positions + config.backstory_len)
+            else:
+                config.override("n_positions", config.n_positions + config.backstory_len*config.num_sys_haystack)
+                if config.new_hay_insert:
+                    config.override("n_positions", config.n_positions + config.backstory_len)
     else:
         raise ValueError(f"datasource {config.datasource} not recognized")
     

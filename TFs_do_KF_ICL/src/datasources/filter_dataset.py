@@ -141,9 +141,12 @@ def populate_traces(config, num_tasks, entries, test=False, train_conv=False, tr
 
     context_len = config.n_positions + 1 #the length of the context is the number of positions plus 1 for the start token
     if test and config.datasource == "backstory_train":
-        context_len -= config.backstory_len*config.num_sys_haystack
-        if config.new_hay_insert:
+        if config.mask_only_init:
             context_len -= config.backstory_len
+        else:
+            context_len -= config.backstory_len*config.num_sys_haystack
+            if config.new_hay_insert:
+                context_len -= config.backstory_len
 
     # if not test and config.mem_suppress:
     #     context_len -= config.mask_budget*config.backstory_len #subtract the maximum number of indices that will be masked from the context length
@@ -458,20 +461,28 @@ def add_backstories(config, sim_objs, segments, mask_idx, sys_appear, sys_choice
     while i < len(seg_starts) and (not config.mask_only_init or i == 0):
         if sys_choices[i] not in sys_appear and real_seg_lens[i] > 0: #if the system has not appeared before and the segment length is greater than 0
             sys_appear.append(sys_choices[i])
-            A = sim_objs[sys_choices[i]].A
 
             x0_ind = seg_starts[i] + 1
-            x0 = segments[x0_ind, 2*config.max_sys_trace + 2:]
-            backstory = []
-            for j in range(config.backstory_len):
-                if len(backstory) == 0:
-                    backstory.append(A.T @ x0)
-                else:
-                    backstory.append(A.T @ backstory[-1])
 
-            #reverse the order of the backstory
-            backstory = backstory[::-1]
-            backstory = np.array(backstory)
+            if config.iid_gaussian:
+                backstory = np.random.multivariate_normal(
+                    mean=np.zeros(config.ny),
+                    cov=(1/5) * np.eye(config.ny),
+                    size=config.backstory_len
+                )
+            else:
+                A = sim_objs[sys_choices[i]].A
+                x0 = segments[x0_ind, 2*config.max_sys_trace + 2:]
+                backstory = []
+                for j in range(config.backstory_len):
+                    if len(backstory) == 0:
+                        backstory.append(A.T @ x0)
+                    else:
+                        backstory.append(A.T @ backstory[-1])
+
+                #reverse the order of the backstory
+                backstory = backstory[::-1]
+                backstory = np.array(backstory)
 
             # concatenate 1 columns of ones to the backstory
             ones = np.ones((backstory.shape[0], 1))
@@ -638,9 +649,6 @@ class FilterDataset(Dataset):
 
                         #     #add the indices of the zeros to the mask_idx list
                         #     mask_idx.extend(np.arange(pre_concat_len, config.n_positions + 1))                 
-                            
-                    elif config.init_seg:
-                        raise NotImplementedError("init_seg is not implemented yet")
                     
                     entry = {"current": segments[:-1, :], "target": segments[1:, 2*config.max_sys_trace + 2:]} #create the entry dictionary with the current and target segments, where the target segment has only the config.ny columns
                     entry["mask_idx"] = mask_idx #add the mask indices to the entry dictionary
