@@ -36,7 +36,6 @@ class Config(object, metaclass=Singleton):
     random_mask = False #randomly mask indices in each system's first appearance instead of the first backstory_len indices
     iid_gaussian = False #use i.i.d. Gaussian noise as backstory
     iid_gaussian_test = False #use i.i.d. Gaussian noise as backstory for validation data only
-    backstory_test = False #add reverse-dynamics backstories for validation data only (mirror of iid_gaussian_test, but uses reverse dynamics)
     cached_data = False #use cached data
     backstory = True #use backstories
     mask_only_init = False #only mask the initial segment

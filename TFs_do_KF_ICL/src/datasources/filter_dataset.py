@@ -140,7 +140,7 @@ def populate_traces(config, num_tasks, entries, test=False, train_conv=False, tr
     real_seg_lens = []
 
     context_len = config.n_positions + 1 #the length of the context is the number of positions plus 1 for the start token
-    if test and config.datasource == "backstory_train":
+    if test and (config.datasource == "backstory_train" or config.iid_gaussian_test or config.backstory_test):
         if config.mask_only_init:
             context_len -= config.backstory_len
         else:
@@ -399,7 +399,7 @@ def populate_traces(config, num_tasks, entries, test=False, train_conv=False, tr
             seg_start += tok_seg_len #update the starting index for the next segment
             seg_count += 1
 
-    if test and config.datasource == "backstory_train":
+    if test and (config.datasource == "backstory_train" or config.iid_gaussian_test or config.backstory_test):
         #add backstories to the segments
         orig_seg_starts = seg_starts.copy() #save the original segment starts for later use
 
@@ -464,7 +464,7 @@ def add_backstories(config, sim_objs, segments, mask_idx, sys_appear, sys_choice
 
             x0_ind = seg_starts[i] + 1
 
-            if config.iid_gaussian:
+            if config.iid_gaussian or (test and config.iid_gaussian_test):
                 backstory = np.random.multivariate_normal(
                     mean=np.zeros(config.ny),
                     cov=(1/5) * np.eye(config.ny),

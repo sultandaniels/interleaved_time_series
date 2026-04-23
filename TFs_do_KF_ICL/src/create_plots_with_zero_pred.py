@@ -1348,7 +1348,7 @@ def compute_errors_multi_sys(config, tf, run_OLS=True, train_conv=False, run_kf=
     
     #create a directory to save the prediction errors
     errs_dir = parent_parent_dir + f"/prediction_errors" + ("_spec_C" if config.needle_in_haystack and config.datasource == "train_systems" and config.multi_sys_trace else f"{config.C_dist}") + f"_step={ckpt_steps}.ckpt"
-    errs_loc = errs_dir + f"/" + ("train_conv_" if train_conv else "") + ("single_system_" if config.single_system else "") + ("zero_cut_" if config.zero_cut else "") + (f"needle_haystack_len_{config.num_sys_haystack}_{config.datasource}_" if config.needle_in_haystack else "") + f"{config.val_dataset_typ}_state_dim_{config.nx}_err_lss.pkl"
+    errs_loc = errs_dir + f"/" + ("train_conv_" if train_conv else "") + ("single_system_" if config.single_system else "") + ("zero_cut_" if config.zero_cut else "") + (f"needle_haystack_len_{config.num_sys_haystack}_{config.datasource}_" if config.needle_in_haystack else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + f"{config.val_dataset_typ}_state_dim_{config.nx}_err_lss.pkl"
 
     if os.path.exists(errs_loc):
         with open(errs_loc, 'rb') as f:
@@ -1909,7 +1909,8 @@ def compute_errors_needle_or_multi_cut(config, model, sim_objs, errs_dir, errs_l
     # interleave_traces_dict_path = os.path.join(f"/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/train_and_test_data/{dataset_typ}/" + f"{config.datasource}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + f"interleaved_traces_{dataset_typ}{config.C_dist}_{interleaving}.pkl")
 
     datasource_prefix = "backstory_train_init" if config.datasource == "backstory_train" and config.mask_only_init else config.datasource
-    interleave_traces_dict_path = os.path.join(f"{os.environ.get('BASE_PATH')}train_and_test_data/{config.dataset_typ}/" + f"{datasource_prefix}_" + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "")+ ("identical_haystack_" if config.identical_haystack else "") + ("repeat_haystack_" if config.repeat_haystack else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
+    backstory_len_tag = f"backlen_{config.backstory_len}_" if (config.backstory and config.backstory_len != config.ny + 2 and (config.iid_gaussian_test or config.backstory_test or config.datasource == "backstory_train")) else ""
+    interleave_traces_dict_path = os.path.join(f"{os.environ.get('BASE_PATH')}train_and_test_data/{config.dataset_typ}/" + f"{datasource_prefix}_" + backstory_len_tag + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "")+ ("identical_haystack_" if config.identical_haystack else "") + ("repeat_haystack_" if config.repeat_haystack else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
 
     with open(interleave_traces_dict_path, "rb") as f:
         interleave_traces_dict = pickle.load(f)
@@ -2064,7 +2065,23 @@ def interleave_traces(config, ys, num_test_traces_configs, num_trials, ex=None, 
                     config.override("n_positions", config.n_positions + config.backstory_len)
     else:
         raise ValueError(f"datasource {config.datasource} not recognized")
-    
+
+    if config.iid_gaussian_test and config.datasource != "backstory_train":
+        if config.mask_only_init:
+            config.override("n_positions", config.n_positions + config.backstory_len)
+        else:
+            config.override("n_positions", config.n_positions + config.backstory_len*config.num_sys_haystack)
+            if config.new_hay_insert:
+                config.override("n_positions", config.n_positions + config.backstory_len)
+
+    if config.backstory_test and config.datasource != "backstory_train":
+        if config.mask_only_init:
+            config.override("n_positions", config.n_positions + config.backstory_len)
+        else:
+            config.override("n_positions", config.n_positions + config.backstory_len*config.num_sys_haystack)
+            if config.new_hay_insert:
+                config.override("n_positions", config.n_positions + config.backstory_len)
+
     num_test_traces_configs = config.num_test_traces_configs
     if config.zero_cut:
         print(f"num_test_traces_configs: {num_test_traces_configs}")
@@ -2110,9 +2127,28 @@ def interleave_traces(config, ys, num_test_traces_configs, num_trials, ex=None, 
         sys_inds_per_config.append(sys_inds)
 
     if config.datasource == "backstory_train":
-        config.override("n_positions", config.n_positions - config.backstory_len*config.num_sys_haystack)
-        if config.new_hay_insert:
+        if config.mask_only_init:
             config.override("n_positions", config.n_positions - config.backstory_len)
+        else:
+            config.override("n_positions", config.n_positions - config.backstory_len*config.num_sys_haystack)
+            if config.new_hay_insert:
+                config.override("n_positions", config.n_positions - config.backstory_len)
+
+    if config.iid_gaussian_test and config.datasource != "backstory_train":
+        if config.mask_only_init:
+            config.override("n_positions", config.n_positions - config.backstory_len)
+        else:
+            config.override("n_positions", config.n_positions - config.backstory_len*config.num_sys_haystack)
+            if config.new_hay_insert:
+                config.override("n_positions", config.n_positions - config.backstory_len)
+
+    if config.backstory_test and config.datasource != "backstory_train":
+        if config.mask_only_init:
+            config.override("n_positions", config.n_positions - config.backstory_len)
+        else:
+            config.override("n_positions", config.n_positions - config.backstory_len*config.num_sys_haystack)
+            if config.new_hay_insert:
+                config.override("n_positions", config.n_positions - config.backstory_len)
 
     return multi_sys_ys, sys_choices_per_config, sys_dict_per_config, tok_seg_lens_per_config, seg_starts_per_config, real_seg_lens_per_config, sys_inds_per_config
 
@@ -2121,7 +2157,7 @@ def needle_in_haystack_preds(config, model, ckpt_steps, parent_parent_dir, errs_
     print(f"config.num_haystack_examples: {config.num_haystack_examples}")
 
     save_errs_dir = parent_parent_dir + f"/prediction_errors" + ("_spec_C" if config.needle_in_haystack and config.datasource == "train_systems" and config.multi_sys_trace else f"{config.C_dist}") + f"_step={ckpt_steps}.ckpt"
-    save_errs_loc = errs_dir + f"/" + ("single_system_" if config.single_system else "") + ("train_conv_" if train_conv else "")+ ("zero_cut_" if config.zero_cut else "") + (f"needle_haystack_len_{config.num_sys_haystack}_{config.datasource}_" if config.needle_in_haystack else f"mult_cut_{config.datasource}_") + ("fin_seg_ext_" if config.needle_in_haystack and config.needle_final_seg_extended else "") + f"{config.val_dataset_typ}_state_dim_{config.nx}_" + ("new_hay_insert_" if config.new_hay_insert else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("paren_swap_" if config.paren_swap else "") + (f"len_seg_haystack_{config.len_seg_haystack}" if config.len_seg_haystack != 10 else "")+ ("identical_haystack_" if config.identical_haystack else "")  + ("repeat_haystack_" if config.repeat_haystack else "") + ("fake_out_" if config.fake_out else "")
+    save_errs_loc = errs_dir + f"/" + ("single_system_" if config.single_system else "") + ("train_conv_" if train_conv else "")+ ("zero_cut_" if config.zero_cut else "") + (f"needle_haystack_len_{config.num_sys_haystack}_{config.datasource}_" if config.needle_in_haystack else f"mult_cut_{config.datasource}_") + ("fin_seg_ext_" if config.needle_in_haystack and config.needle_final_seg_extended else "") + f"{config.val_dataset_typ}_state_dim_{config.nx}_" + ("new_hay_insert_" if config.new_hay_insert else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("paren_swap_" if config.paren_swap else "") + (f"len_seg_haystack_{config.len_seg_haystack}" if config.len_seg_haystack != 10 else "")+ ("identical_haystack_" if config.identical_haystack else "")  + ("repeat_haystack_" if config.repeat_haystack else "") + ("fake_out_" if config.fake_out else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "")
     
 
     err_lss_all = {}
