@@ -37,6 +37,8 @@ class Config(object, metaclass=Singleton):
     iid_gaussian = False #use i.i.d. Gaussian noise as backstory
     iid_gaussian_test = False #use i.i.d. Gaussian noise as backstory for validation data only
     backstory_test = False #add reverse-dynamics backstories for validation data only (mirror of iid_gaussian_test, but uses reverse dynamics)
+    eval_mask_only_init = False #eval-time override: force mask_only_init=True so evaluation uses the backstory_train_init data file, without polluting output names of the base training run
+    eval_backstory_len = None #eval-time override: force backstory_len to this value (int) when generating/loading test data; output artifacts get an eval_backlen_{N}_ tag to avoid clashing with the base run
     cached_data = False #use cached data
     backstory = True #use backstories
     mask_only_init = False #only mask the initial segment

@@ -1025,8 +1025,9 @@ def generate_interleaved_traces(config, ys, sim_objs, num_trials):
     else:
         interleaving = f"multi_cut"
 
-    datasource_prefix = "backstory_train_init" if config.datasource == "backstory_train" and config.mask_only_init else config.datasource
-    backstory_len_tag = f"backlen_{config.backstory_len}_" if (config.backstory and config.backstory_len != config.ny + 2 and (config.iid_gaussian_test or config.backstory_test or config.datasource == "backstory_train")) else ""
+    adds_backstories = (config.datasource == "backstory_train") or config.iid_gaussian_test or config.backstory_test
+    datasource_prefix = (config.datasource + "_init") if (adds_backstories and config.mask_only_init) else config.datasource
+    backstory_len_tag = f"backlen_{config.backstory_len}_" if (config.backstory and config.backstory_len != config.ny + 2 and adds_backstories) else ""
     interleave_traces_dict_path = os.path.join(f"{BASE_PATH}train_and_test_data/{config.dataset_typ}/" + f"{datasource_prefix}_" + backstory_len_tag + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("identical_haystack_" if config.identical_haystack else "")+ ("repeat_haystack_" if config.repeat_haystack else "")+ ("iid_gaussian_" if config.iid_gaussian and not config.iid_gaussian_test else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
 
     # raise ValueError(f"interleave_traces_dict_path: {interleave_traces_dict_path} does not exist. Please create it before running this function.")
@@ -3909,7 +3910,7 @@ def plot_needles(config, num_sys, output_dir, model_dir, experiment, num_haystac
 
         #check for err_lss_examples at the last ckpt
         errs_dir = model_dir + experiment + f"/prediction_errors{config.C_dist}_step={pred_ckpt_step}.ckpt"
-        errs_loc = errs_dir + f"/needle_haystack_len_{num_sys}_{config.datasource}_{config.val_dataset_typ}_state_dim_{config.nx}_" + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("paren_swap_" if config.paren_swap else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "")
+        errs_loc = errs_dir + f"/needle_haystack_len_{num_sys}_{config.datasource}_{config.val_dataset_typ}_state_dim_{config.nx}_" + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("paren_swap_" if config.paren_swap else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + ("eval_init_" if config.eval_mask_only_init else "") + (f"eval_backlen_{config.eval_backstory_len}_" if config.eval_backstory_len is not None else "")
 
         if not os.path.exists(errs_loc + "err_lss_examples.pkl") and not desktop:
             print(f"err_lss_examples.pkl does not exist for non train conv at early stop ckpt")
@@ -4012,6 +4013,8 @@ if __name__ == '__main__':
     parser.add_argument('--fake_out', help='Boolean. Run fake out experiment', action='store_true')
     parser.add_argument('--iid_gaussian_test', help='Boolean. Use i.i.d. Gaussian backstories for validation needle-in-haystack traces.', action='store_true')
     parser.add_argument('--backstory_test', help='Boolean. Use reverse-dynamics backstories for validation needle-in-haystack traces.', action='store_true')
+    parser.add_argument('--eval_mask_only_init', help='Boolean. At eval time, force mask_only_init=True so predictions run against the backstory_train_init data file. Output artifacts get an eval_init_ tag to avoid clashing with the base run.', action='store_true')
+    parser.add_argument('--eval_backstory_len', type=int, default=None, help='Integer. At eval time, force backstory_len to this value for data loading/generation. Output artifacts get an eval_backlen_{N}_ tag to avoid clashing with the base run.')
 
 
 
@@ -4116,6 +4119,10 @@ if __name__ == '__main__':
     iid_gaussian_test = args.iid_gaussian_test
     print("backstory_test arg", args.backstory_test)
     backstory_test = args.backstory_test
+    print("eval_mask_only_init arg", args.eval_mask_only_init)
+    eval_mask_only_init = args.eval_mask_only_init
+    print("eval_backstory_len arg", args.eval_backstory_len)
+    eval_backstory_len = args.eval_backstory_len
 
 
 
@@ -4221,6 +4228,14 @@ if __name__ == '__main__':
     if config.iid_gaussian_test and config.backstory_test:
         raise ValueError("iid_gaussian_test and backstory_test cannot both be True")
 
+    config.override("eval_mask_only_init", eval_mask_only_init)
+    if config.eval_mask_only_init:
+        print("Eval override: forcing mask_only_init=True (targets backstory_train_init data; outputs tagged eval_init_)\n\n\n")
+
+    config.override("eval_backstory_len", eval_backstory_len)
+    if config.eval_backstory_len is not None:
+        print(f"Eval override: forcing backstory_len={config.eval_backstory_len} (outputs tagged eval_backlen_{config.eval_backstory_len}_)\n\n\n")
+
     
     # Get the class variables in dictionary format
     config_dict  = {
@@ -4262,6 +4277,10 @@ if __name__ == '__main__':
 
         output_dir, ckpt_dir, experiment_name = set_config_params(config, model_name)
         update_dataset_typ(config, args.dataset_typ)
+        if config.eval_mask_only_init:
+            config.override("mask_only_init", True)
+        if config.eval_backstory_len is not None:
+            config.override("backstory_len", config.eval_backstory_len)
         print(f"output_dir: {output_dir}")
 
         if config.plateau:
@@ -4314,6 +4333,10 @@ if __name__ == '__main__':
 
         output_dir, ckpt_dir, experiment_name = set_config_params(config, model_name)
         update_dataset_typ(config, args.dataset_typ)
+        if config.eval_mask_only_init:
+            config.override("mask_only_init", True)
+        if config.eval_backstory_len is not None:
+            config.override("backstory_len", config.eval_backstory_len)
         # if test_backstory:
         #     print("Testing on backstoried data")
         #     config.override("mem_suppress", True)
@@ -4457,7 +4480,7 @@ if __name__ == '__main__':
 
 
                         errs_dir = model_dir + experiment + f"/prediction_errors{config.C_dist}_step={ckpt_step}.ckpt"
-                        errs_loc = errs_dir + f"/train_conv_needle_haystack_len_{num_sys}_{config.datasource}_{config.val_dataset_typ}_state_dim_{config.nx}_" + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("paren_swap_" if config.paren_swap else "")  + ("new_hay_insert_" if config.new_hay_insert else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "")
+                        errs_loc = errs_dir + f"/train_conv_needle_haystack_len_{num_sys}_{config.datasource}_{config.val_dataset_typ}_state_dim_{config.nx}_" + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("paren_swap_" if config.paren_swap else "")  + ("new_hay_insert_" if config.new_hay_insert else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + ("eval_init_" if config.eval_mask_only_init else "") + (f"eval_backlen_{config.eval_backstory_len}_" if config.eval_backstory_len is not None else "")
 
 
                         if os.path.exists(errs_loc + "err_lss_examples.pkl"):
