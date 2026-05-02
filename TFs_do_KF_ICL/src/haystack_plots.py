@@ -485,7 +485,7 @@ def compute_quartiles_ckpt(config, model_name, steps_in, model_dir, experiment, 
             x_values.append(x_value)
             for needle in range(1):
                 fin_seg_start = seg_starts_per_conf[needle][-1]
-                if config.datasource == "backstory_train":
+                if config.datasource == "backstory_train" or config.iid_gaussian_test or config.backstory_test:
                     if config.mask_only_init:
                         fin_seg_start += config.backstory_len
                     else:

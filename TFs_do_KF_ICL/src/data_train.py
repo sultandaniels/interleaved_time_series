@@ -906,7 +906,7 @@ def gen_ckpt_pred_steps(model_name): #change this function to use the model name
 
     #     ckpt_pred_steps = gen_pred_ckpts(minval, maxval, train_int, phases, hande_code_scale=False)
 
-    elif model_name == "ortho_haar_big_mask_backstory_no_leak" or model_name == "ortho_haar_big_unmask_backstory_no_leak" or model_name == "ortho_haar_big_mask_backstory_init" or model_name == "ortho_haar_big_mask_backstory_iid_gaussian" or model_name == "ortho_haar_big_mask_backstory_backlen_1":
+    elif model_name == "ortho_haar_big_mask_backstory_no_leak" or model_name == "ortho_haar_big_unmask_backstory_no_leak" or model_name == "ortho_haar_big_mask_backstory_init" or model_name == "ortho_haar_big_mask_backstory_iid_gaussian" or model_name == "ortho_haar_big_mask_backstory_backlen_1" or model_name == "ortho_haar_big_mask_backstory_backlen_2":
         minval = 1000
         maxval = 316000
         train_int = 1000
@@ -1027,7 +1027,7 @@ def generate_interleaved_traces(config, ys, sim_objs, num_trials):
 
     adds_backstories = (config.datasource == "backstory_train") or config.iid_gaussian_test or config.backstory_test
     datasource_prefix = (config.datasource + "_init") if (adds_backstories and config.mask_only_init) else config.datasource
-    backstory_len_tag = f"backlen_{config.backstory_len}_" if (config.backstory and config.backstory_len != config.ny + 2 and adds_backstories) else ""
+    backstory_len_tag = f"backlen_{config.backstory_len}_" if (config.backstory_len != config.ny + 2 and adds_backstories) else ""
     interleave_traces_dict_path = os.path.join(f"{BASE_PATH}train_and_test_data/{config.dataset_typ}/" + f"{datasource_prefix}_" + backstory_len_tag + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("identical_haystack_" if config.identical_haystack else "")+ ("repeat_haystack_" if config.repeat_haystack else "")+ ("iid_gaussian_" if config.iid_gaussian and not config.iid_gaussian_test else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
 
     # raise ValueError(f"interleave_traces_dict_path: {interleave_traces_dict_path} does not exist. Please create it before running this function.")
@@ -3430,6 +3430,59 @@ def set_config_params(config, model_name):
         
         config.override("learning_rate", np.sqrt((len(config.devices) * config.batch_size)/512)*(0.833333333)*1.584893192461114e-05)
 
+    elif model_name == "ortho_haar_big_mask_backstory_backlen_2":
+        experiment_name = "backstory_masked_back_len_2_260422_225418.22d1e8_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000"
+
+        print("\n\nORTHO HAAR BIG MASK BACKSTORY BACKSTORY LENGTH 2\n\n")
+
+        # Dataset settings
+        config.override("num_tasks", 40000)  # number of training systems
+        config.override("num_val_tasks", 100)  # number of test systems
+        config.override("dataset_typ", "ortho_haar")  # "unifA" #"gaussA" #"gaussA_noscale" #"rotDiagA" #"rotDiagA_unif" #"rotDiagA_gauss" #"upperTriA" #"single_system" #"cond_num" #"upperTriA_gauss" #"ident" #"ortho"
+        config.override("max_cond_num", 100)
+        config.override("distinct_cond_nums", 10)
+        config.override("val_dataset_typ", "ortho_haar")  # "unifA" #"gaussA" #"gaussA_noscale" #"rotDiagA" #"rotDiagA_unif" #"rotDiagA_gauss" #"upperTriA" #"single_system" #"cond_num" #"ident" #"ortho"
+        config.override("C_dist", "_ident_C")  # "_unif_C" #"_gauss_C" #"_gauss_C_large_var" #"_single_system" #"upperTriA_gauss" #"_ident_C"
+        config.override("nx", 5)
+        config.override("ny", 5)
+        config.override("n_noise", 1)
+        config.override("num_traces", {"train": 1, "val": 1000})
+        config.override("changing", False)  # used only for plotting
+
+        #mem_suppress experiment settings
+        config.override("mem_suppress", True) #run the memory suppression experiment
+        config.override("masking", True) #run the masking training run
+        config.override("cached_data", False) #use masked backstories
+        config.override("backstory", True) #use masked backstories
+        config.override("init_seg", False) #use masked initial segments
+        config.override("backstory_len", 2) #length of the backstory
+        config.override("mask_budget", 10) #max # of systems that will be masked on first appearance (alpha)
+        config.override("iid_gaussian", False)
+        config.override("random_mask", False)
+
+        # Training settings
+        config.override("devices", [0])  # which GPU
+        config.override("train_steps", 1008000)  # number of training steps (27000x3 = 81000 effective single GPU iterations) (num_tasks*num_traces[train])/batch_size
+        config.override("num_epochs", 1)  # minimum number of epochs to train for
+        config.override("train_int",1000)  # number of steps between logging (train interval)
+        config.override("use_true_len", False)  # Flag for a dataset length to be num_tasks
+        config.override("batch_size", 2*8*40)  # 2048 #512 #usually 512 (~35GB) tune this to fit into GPU memory
+        config.override("train_data_workers", 31)  # set to 1 (check if it changes the speed of the training process)
+        config.override("test_batch_size", 512)
+        config.override("test_data_workers", 7)  # keep at 1
+
+        # Model settings
+        config.override("model_type", "GPT2")  # "GPT2" #"transfoXL" #"olmo"
+        config.override("use_pos_emb", True)  # use positional embeddings
+        config.override("n_positions", 250 - config.mask_budget*config.backstory_len if config.mem_suppress and not config.masking else 250)  # 500 for extended OLS #250 #context length
+        config.override("n_embd", 192)
+        config.override("n_layer", 24)
+        config.override("n_head", 12)
+        config.override("n_dims_in", int(config.ny + (2 * config.max_sys_trace) + 2) if config.multi_sys_trace else config.ny)  # input dimension is the observation dimension + special token parentheses + special start token + payload identifier
+        config.override("n_dims_out", 5)  # (IMPORTANT TO KEEP THIS AT 5 FOR NOW) TODO: this used to be 10 but needs to be fixed to match lin_sys.yaml
+        
+        config.override("learning_rate", np.sqrt((len(config.devices) * config.batch_size)/512)*(0.833333333)*1.584893192461114e-05)
+
     elif model_name == "ortho_haar_big_unmask_backstory_no_leak":
         experiment_name = "backstory_unmasked_251216_134701.16f67a_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000"
 
@@ -4013,7 +4066,7 @@ if __name__ == '__main__':
     parser.add_argument('--fake_out', help='Boolean. Run fake out experiment', action='store_true')
     parser.add_argument('--iid_gaussian_test', help='Boolean. Use i.i.d. Gaussian backstories for validation needle-in-haystack traces.', action='store_true')
     parser.add_argument('--backstory_test', help='Boolean. Use reverse-dynamics backstories for validation needle-in-haystack traces.', action='store_true')
-    parser.add_argument('--eval_mask_only_init', help='Boolean. At eval time, force mask_only_init=True so predictions run against the backstory_train_init data file. Output artifacts get an eval_init_ tag to avoid clashing with the base run.', action='store_true')
+    parser.add_argument('--eval_mask_only_init', help='Boolean. At eval time, controls backstory placement for backstory_train / iid_gaussian_test / backstory_test. Default (flag off): backstories inserted at every haystack segment. Flag on: backstories inserted only at the initial segment (targets the backstory_train_init data file; outputs tagged eval_init_ to avoid clashing with the base run).', action='store_true')
     parser.add_argument('--eval_backstory_len', type=int, default=None, help='Integer. At eval time, force backstory_len to this value for data loading/generation. Output artifacts get an eval_backlen_{N}_ tag to avoid clashing with the base run.')
 
 
@@ -4230,7 +4283,9 @@ if __name__ == '__main__':
 
     config.override("eval_mask_only_init", eval_mask_only_init)
     if config.eval_mask_only_init:
-        print("Eval override: forcing mask_only_init=True (targets backstory_train_init data; outputs tagged eval_init_)\n\n\n")
+        print("Eval override: forcing mask_only_init=True (backstories on initial segment only; outputs tagged eval_init_)\n\n\n")
+    else:
+        print("Eval default: mask_only_init=False (backstories on every haystack segment)\n\n\n")
 
     config.override("eval_backstory_len", eval_backstory_len)
     if config.eval_backstory_len is not None:
@@ -4277,10 +4332,17 @@ if __name__ == '__main__':
 
         output_dir, ckpt_dir, experiment_name = set_config_params(config, model_name)
         update_dataset_typ(config, args.dataset_typ)
-        if config.eval_mask_only_init:
+        if make_preds or saved_preds:
+            config.override("mask_only_init", bool(config.eval_mask_only_init))
+            config.override("iid_gaussian", bool(config.iid_gaussian_test))
+        elif config.eval_mask_only_init:
             config.override("mask_only_init", True)
         if config.eval_backstory_len is not None:
             config.override("backstory_len", config.eval_backstory_len)
+        else:
+            # eval default: use canonical backstory_len (ny+2) so backlen_N models evaluate
+            # on the same context length as the full model unless explicitly overridden.
+            config.override("backstory_len", config.ny + 2)
         print(f"output_dir: {output_dir}")
 
         if config.plateau:
@@ -4333,10 +4395,14 @@ if __name__ == '__main__':
 
         output_dir, ckpt_dir, experiment_name = set_config_params(config, model_name)
         update_dataset_typ(config, args.dataset_typ)
-        if config.eval_mask_only_init:
-            config.override("mask_only_init", True)
+        config.override("mask_only_init", bool(config.eval_mask_only_init))
+        config.override("iid_gaussian", bool(config.iid_gaussian_test))
         if config.eval_backstory_len is not None:
             config.override("backstory_len", config.eval_backstory_len)
+        else:
+            # eval default: use canonical backstory_len (ny+2) so backlen_N models evaluate
+            # on the same context length as the full model unless explicitly overridden.
+            config.override("backstory_len", config.ny + 2)
         # if test_backstory:
         #     print("Testing on backstoried data")
         #     config.override("mem_suppress", True)

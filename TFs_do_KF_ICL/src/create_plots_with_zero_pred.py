@@ -1074,6 +1074,15 @@ def populate_val_traces_helper(config, trial, ys_trial, sys_choices=None, sys_di
 
     if sys_dict:
         context_len = config.n_positions + 1 #the length of the context
+        # Deflate so segments start at the un-inflated size; add_backstories grows them
+        # back to config.n_positions+1. Mirrors the logic in populate_traces (filter_dataset.py).
+        if config.datasource == "backstory_train" or config.iid_gaussian_test or config.backstory_test:
+            if config.mask_only_init:
+                context_len -= config.backstory_len
+            else:
+                context_len -= config.backstory_len*config.num_sys_haystack
+                if config.new_hay_insert:
+                    context_len -= config.backstory_len
         if config.fake_out:
             context_len += config.len_seg_haystack - 1
 
@@ -1191,11 +1200,13 @@ def populate_val_traces_helper(config, trial, ys_trial, sys_choices=None, sys_di
 
 
 
-    if config.datasource == "backstory_train":
+    if config.datasource == "backstory_train" or config.iid_gaussian_test or config.backstory_test:
 
         mask_idx = []
         sys_appear = []
-        segments, mask_idx = add_backstories(config, sim_objs, segments, mask_idx, sys_appear, sys_choices, seg_starts, real_seg_lens)
+        orig_seg_starts = list(seg_starts)  # add_backstories mutates seg_starts in-place; restore below so subsequent trials see pre-shift positions
+        segments, mask_idx = add_backstories(config, sim_objs, segments, mask_idx, sys_appear, sys_choices, seg_starts, real_seg_lens, test=True)
+        seg_starts[:] = orig_seg_starts
 
     return segments, sys_choices, sys_dict, tok_seg_lens, real_seg_lens
 
@@ -1910,7 +1921,7 @@ def compute_errors_needle_or_multi_cut(config, model, sim_objs, errs_dir, errs_l
 
     adds_backstories = (config.datasource == "backstory_train") or config.iid_gaussian_test or config.backstory_test
     datasource_prefix = (config.datasource + "_init") if (adds_backstories and config.mask_only_init) else config.datasource
-    backstory_len_tag = f"backlen_{config.backstory_len}_" if (config.backstory and config.backstory_len != config.ny + 2 and adds_backstories) else ""
+    backstory_len_tag = f"backlen_{config.backstory_len}_" if (config.backstory_len != config.ny + 2 and adds_backstories) else ""
     interleave_traces_dict_path = os.path.join(f"{os.environ.get('BASE_PATH')}train_and_test_data/{config.dataset_typ}/" + f"{datasource_prefix}_" + backstory_len_tag + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "")+ ("identical_haystack_" if config.identical_haystack else "") + ("repeat_haystack_" if config.repeat_haystack else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
 
     with open(interleave_traces_dict_path, "rb") as f:
