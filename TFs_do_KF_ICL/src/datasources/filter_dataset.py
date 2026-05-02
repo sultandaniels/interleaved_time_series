@@ -6,6 +6,7 @@ import scipy.stats as stats
 import pickle
 from linalg_helpers import print_matrix
 import os
+import math
 
 
 config = Config()
@@ -459,7 +460,7 @@ def add_backstories(config, sim_objs, segments, mask_idx, sys_appear, sys_choice
 
     #if config.mask_only_init is True only have the while loop run when i == 0
     while i < len(seg_starts) and (not config.mask_only_init or i == 0):
-        if sys_choices[i] not in sys_appear and real_seg_lens[i] > 0: #if the system has not appeared before and the segment length is greater than 0
+        if sys_choices[i] not in sys_appear and real_seg_lens[i] > 0 and sys_choices[i] < math.ceil(config.back_frac*config.num_tasks): #if the system has not appeared before and the segment length is greater than 0
             sys_appear.append(sys_choices[i])
 
             x0_ind = seg_starts[i] + 1

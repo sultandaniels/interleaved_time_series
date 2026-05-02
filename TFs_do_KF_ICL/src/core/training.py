@@ -76,7 +76,7 @@ def setup_train(model, train_mix_dist=False, train_mix_state_dim=False):
                       
         timestamp = time.strftime('%y%m%d_%H%M%S') + '.' + hashlib.md5(config.get_full_yaml().encode('utf-8')).hexdigest()[:6]
 
-        experiment_name = (f"back_len_{config.backstory_len}_" if config.masking and config.backstory_len != config.ny+2 else "") + ("iid_gaussian_" if config.masking and config.iid_gaussian else "")+ ("init_" if config.masking and config.mask_only_init else "") + timestamp + ("_multi_sys_trace" if config.multi_sys_trace else "") + ("_zero_cut" if config.zero_cut else "") + f"_{config.dataset_typ}_state_dim_{config.nx}{config.C_dist}" + ("_dist_mix" if train_mix_dist else "") + ("_state_dim_mix" if train_mix_state_dim else "") + "_lr_" + str(config.learning_rate) + "_num_train_sys_" + str(config.num_tasks)
+        experiment_name = (f"back_frac_{config.back_frac}_" if config.masking and config.back_frac != 1.0 else "") + (f"back_len_{config.backstory_len}_" if config.masking and config.backstory_len != config.ny+2 else "") + ("iid_gaussian_" if config.masking and config.iid_gaussian else "")+ ("init_" if config.masking and config.mask_only_init else "") + timestamp + ("_multi_sys_trace" if config.multi_sys_trace else "") + ("_zero_cut" if config.zero_cut else "") + f"_{config.dataset_typ}_state_dim_{config.nx}{config.C_dist}" + ("_dist_mix" if train_mix_dist else "") + ("_state_dim_mix" if train_mix_state_dim else "") + "_lr_" + str(config.learning_rate) + "_num_train_sys_" + str(config.num_tasks)
 
         if config.mem_suppress:
             experiment_name = mem_suppress_ckpt_path(config, experiment_name, 0)
