@@ -6,6 +6,7 @@ from core import setup_train
 import os
 from create_plots_with_zero_pred import create_plots, convergence_plots, load_preds, interleave_traces
 import argparse
+import math
 import wandb
 import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
@@ -906,7 +907,7 @@ def gen_ckpt_pred_steps(model_name): #change this function to use the model name
 
     #     ckpt_pred_steps = gen_pred_ckpts(minval, maxval, train_int, phases, hande_code_scale=False)
 
-    elif model_name == "ortho_haar_big_mask_backstory_no_leak" or model_name == "ortho_haar_big_unmask_backstory_no_leak" or model_name == "ortho_haar_big_mask_backstory_init" or model_name == "ortho_haar_big_mask_backstory_iid_gaussian" or model_name == "ortho_haar_big_mask_backstory_backlen_1" or model_name == "ortho_haar_big_mask_backstory_backlen_2":
+    elif model_name == "ortho_haar_big_mask_backstory_no_leak" or model_name == "ortho_haar_big_unmask_backstory_no_leak" or model_name == "ortho_haar_big_mask_backstory_init" or model_name == "ortho_haar_big_mask_backstory_iid_gaussian" or model_name == "ortho_haar_big_mask_backstory_backlen_1" or model_name == "ortho_haar_big_mask_backstory_backlen_2" or model_name == "ortho_haar_big_mask_backstory_back_frac_025" or model_name == "ortho_haar_big_mask_backstory_back_frac_05" or model_name == "ortho_haar_big_mask_backstory_back_frac_05_backlen_2" or model_name == "ortho_haar_big_mask_backstory_back_frac_075":
         minval = 1000
         maxval = 316000
         train_int = 1000
@@ -3805,6 +3806,270 @@ def set_config_params(config, model_name):
 
 
 
+    elif model_name == "ortho_haar_big_mask_backstory_back_frac_025":
+        experiment_name = "backstory_masked_back_frac_0.25_260513_172851.4a7f15_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000"
+
+        print("\n\nORTHO_HAAR_BIG_MASK_BACKSTORY_BACK_FRAC_025\n\n")
+
+        # Overrides generated from configs/config.py for backstory_masked_back_frac_0.25_260513_172851.4a7f15_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000
+        config.override("num_tasks", 40000)
+        config.override("num_val_tasks", 100)
+        config.override("dataset_typ", 'ortho_haar')
+        config.override("max_cond_num", 100)
+        config.override("distinct_cond_nums", 10)
+        config.override("val_dataset_typ", 'ortho_haar')
+        config.override("C_dist", '_ident_C')
+        config.override("nx", 5)
+        config.override("ny", 5)
+        config.override("n_noise", 1)
+        config.override("num_traces", {'train': 1, 'val': 1000})
+        config.override("changing", False)
+        config.override("mem_suppress", True)
+        config.override("masking", True)
+        config.override("random_mask", False)
+        config.override("iid_gaussian", False)
+        config.override("iid_gaussian_test", False)
+        config.override("backstory_test", False)
+        config.override("cached_data", False)
+        config.override("backstory", True)
+        config.override("mask_only_init", False)
+        config.override("backstory_len", 7)
+        config.override("mask_budget", 10)
+        config.override("back_frac", 0.25)
+        config.override("multi_sys_trace", True)
+        config.override("max_sys_trace", min(25, config.num_tasks))
+        config.override("single_system", False)
+        config.override("zero_cut", False)
+        config.override("needle_in_haystack", False)
+        config.override("needle_final_seg_extended", False)
+        config.override("datasource", 'val')
+        config.override("num_sys_haystack", 19)
+        config.override("len_seg_haystack", 10)
+        config.override("num_haystack_examples", 200)
+        config.override("num_test_traces_configs", config.num_sys_haystack if config.needle_in_haystack and (not config.needle_final_seg_extended) else 1 if config.needle_in_haystack and config.needle_final_seg_extended else config.num_val_tasks if config.zero_cut else 1)
+        config.override("devices", [0])
+        config.override("train_steps", 10080000)
+        config.override("num_epochs", 1)
+        config.override("train_int", 1000)
+        config.override("use_true_len", False)
+        config.override("batch_size", 640)
+        config.override("acc_grad_batch", 1)
+        config.override("train_data_workers", 5)
+        config.override("test_batch_size", 512)
+        config.override("test_data_workers", 7)
+        config.override("model_type", 'GPT2')
+        config.override("use_pos_emb", True)
+        config.override("n_positions", 250 - config.mask_budget * config.backstory_len if config.mem_suppress and (not config.masking) else 250)
+        config.override("n_embd", 192)
+        config.override("n_interm_embd", 10)
+        config.override("n_layer", 24)
+        config.override("n_head", 12)
+        config.override("n_dims_in", int(config.ny + 2 * config.max_sys_trace + 2) if config.multi_sys_trace else config.ny)
+        config.override("n_dims_out", config.ny)
+        config.override("d_model", 512)
+        config.override("learning_rate", np.sqrt(len(config.devices) * config.batch_size / 512) * 0.833333333 * 1.584893192461114e-05)
+        config.override("weight_decay", 0.01)
+        config.override("gradient_clip_algorithm", 'norm')
+        config.override("gradient_clip_val", 1.0)
+
+    elif model_name == "ortho_haar_big_mask_backstory_back_frac_05":
+        experiment_name = "backstory_masked_back_frac_0.5_260502_205247.ad0abd_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000"
+
+        print("\n\nORTHO_HAAR_BIG_MASK_BACKSTORY_BACK_FRAC_05\n\n")
+
+        # Overrides generated from configs/config.py for backstory_masked_back_frac_0.5_260502_205247.ad0abd_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000
+        config.override("num_tasks", 40000)
+        config.override("num_val_tasks", 100)
+        config.override("dataset_typ", 'ortho_haar')
+        config.override("max_cond_num", 100)
+        config.override("distinct_cond_nums", 10)
+        config.override("val_dataset_typ", 'ortho_haar')
+        config.override("C_dist", '_ident_C')
+        config.override("nx", 5)
+        config.override("ny", 5)
+        config.override("n_noise", 1)
+        config.override("num_traces", {'train': 1, 'val': 1000})
+        config.override("changing", False)
+        config.override("mem_suppress", True)
+        config.override("masking", True)
+        config.override("random_mask", False)
+        config.override("iid_gaussian", False)
+        config.override("iid_gaussian_test", False)
+        config.override("backstory_test", False)
+        config.override("cached_data", False)
+        config.override("backstory", True)
+        config.override("mask_only_init", False)
+        config.override("backstory_len", 7)
+        config.override("mask_budget", 10)
+        config.override("back_frac", 0.5)
+        config.override("multi_sys_trace", True)
+        config.override("max_sys_trace", min(25, config.num_tasks))
+        config.override("single_system", False)
+        config.override("zero_cut", False)
+        config.override("needle_in_haystack", False)
+        config.override("needle_final_seg_extended", False)
+        config.override("datasource", 'val')
+        config.override("num_sys_haystack", 19)
+        config.override("len_seg_haystack", 10)
+        config.override("num_haystack_examples", 200)
+        config.override("num_test_traces_configs", config.num_sys_haystack if config.needle_in_haystack and (not config.needle_final_seg_extended) else 1 if config.needle_in_haystack and config.needle_final_seg_extended else config.num_val_tasks if config.zero_cut else 1)
+        config.override("devices", [0])
+        config.override("train_steps", 10080000)
+        config.override("num_epochs", 1)
+        config.override("train_int", 1000)
+        config.override("use_true_len", False)
+        config.override("batch_size", 640)
+        config.override("acc_grad_batch", 1)
+        config.override("train_data_workers", 5)
+        config.override("test_batch_size", 512)
+        config.override("test_data_workers", 7)
+        config.override("model_type", 'GPT2')
+        config.override("use_pos_emb", True)
+        config.override("n_positions", 250 - config.mask_budget * config.backstory_len if config.mem_suppress and (not config.masking) else 250)
+        config.override("n_embd", 192)
+        config.override("n_interm_embd", 10)
+        config.override("n_layer", 24)
+        config.override("n_head", 12)
+        config.override("n_dims_in", int(config.ny + 2 * config.max_sys_trace + 2) if config.multi_sys_trace else config.ny)
+        config.override("n_dims_out", config.ny)
+        config.override("d_model", 512)
+        config.override("learning_rate", np.sqrt(len(config.devices) * config.batch_size / 512) * 0.833333333 * 1.584893192461114e-05)
+        config.override("weight_decay", 0.01)
+        config.override("gradient_clip_algorithm", 'norm')
+        config.override("gradient_clip_val", 1.0)
+
+    elif model_name == "ortho_haar_big_mask_backstory_back_frac_05_backlen_2":
+        experiment_name = "backstory_masked_back_frac_0.5_back_len_2_260502_193712.2eb65a_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000"
+
+        print("\n\nORTHO_HAAR_BIG_MASK_BACKSTORY_BACK_FRAC_05_BACKLEN_2\n\n")
+
+        # Overrides generated from configs/config.py for backstory_masked_back_frac_0.5_back_len_2_260502_193712.2eb65a_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000
+        config.override("num_tasks", 40000)
+        config.override("num_val_tasks", 100)
+        config.override("dataset_typ", 'ortho_haar')
+        config.override("max_cond_num", 100)
+        config.override("distinct_cond_nums", 10)
+        config.override("val_dataset_typ", 'ortho_haar')
+        config.override("C_dist", '_ident_C')
+        config.override("nx", 5)
+        config.override("ny", 5)
+        config.override("n_noise", 1)
+        config.override("num_traces", {'train': 1, 'val': 1000})
+        config.override("changing", False)
+        config.override("mem_suppress", True)
+        config.override("masking", True)
+        config.override("random_mask", False)
+        config.override("iid_gaussian", False)
+        config.override("iid_gaussian_test", False)
+        config.override("backstory_test", False)
+        config.override("cached_data", False)
+        config.override("backstory", True)
+        config.override("mask_only_init", False)
+        config.override("backstory_len", 2)
+        config.override("mask_budget", 10)
+        config.override("back_frac", 0.5)
+        config.override("multi_sys_trace", True)
+        config.override("max_sys_trace", min(25, config.num_tasks))
+        config.override("single_system", False)
+        config.override("zero_cut", False)
+        config.override("needle_in_haystack", False)
+        config.override("needle_final_seg_extended", False)
+        config.override("datasource", 'val')
+        config.override("num_sys_haystack", 19)
+        config.override("len_seg_haystack", 10)
+        config.override("num_haystack_examples", 200)
+        config.override("num_test_traces_configs", config.num_sys_haystack if config.needle_in_haystack and (not config.needle_final_seg_extended) else 1 if config.needle_in_haystack and config.needle_final_seg_extended else config.num_val_tasks if config.zero_cut else 1)
+        config.override("devices", [0])
+        config.override("train_steps", 10080000)
+        config.override("num_epochs", 1)
+        config.override("train_int", 1000)
+        config.override("use_true_len", False)
+        config.override("batch_size", 640)
+        config.override("acc_grad_batch", 1)
+        config.override("train_data_workers", 5)
+        config.override("test_batch_size", 512)
+        config.override("test_data_workers", 7)
+        config.override("model_type", 'GPT2')
+        config.override("use_pos_emb", True)
+        config.override("n_positions", 250 - config.mask_budget * config.backstory_len if config.mem_suppress and (not config.masking) else 250)
+        config.override("n_embd", 192)
+        config.override("n_interm_embd", 10)
+        config.override("n_layer", 24)
+        config.override("n_head", 12)
+        config.override("n_dims_in", int(config.ny + 2 * config.max_sys_trace + 2) if config.multi_sys_trace else config.ny)
+        config.override("n_dims_out", config.ny)
+        config.override("d_model", 512)
+        config.override("learning_rate", np.sqrt(len(config.devices) * config.batch_size / 512) * 0.833333333 * 1.584893192461114e-05)
+        config.override("weight_decay", 0.01)
+        config.override("gradient_clip_algorithm", 'norm')
+        config.override("gradient_clip_val", 1.0)
+
+    elif model_name == "ortho_haar_big_mask_backstory_back_frac_075":
+        experiment_name = "backstory_masked_back_frac_0.75_260511_165811.c5f1a7_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000"
+
+        print("\n\nORTHO_HAAR_BIG_MASK_BACKSTORY_BACK_FRAC_075\n\n")
+
+        # Overrides generated from configs/config.py for backstory_masked_back_frac_0.75_260511_165811.c5f1a7_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000
+        config.override("num_tasks", 40000)
+        config.override("num_val_tasks", 100)
+        config.override("dataset_typ", 'ortho_haar')
+        config.override("max_cond_num", 100)
+        config.override("distinct_cond_nums", 10)
+        config.override("val_dataset_typ", 'ortho_haar')
+        config.override("C_dist", '_ident_C')
+        config.override("nx", 5)
+        config.override("ny", 5)
+        config.override("n_noise", 1)
+        config.override("num_traces", {'train': 1, 'val': 1000})
+        config.override("changing", False)
+        config.override("mem_suppress", True)
+        config.override("masking", True)
+        config.override("random_mask", False)
+        config.override("iid_gaussian", False)
+        config.override("iid_gaussian_test", False)
+        config.override("backstory_test", False)
+        config.override("cached_data", False)
+        config.override("backstory", True)
+        config.override("mask_only_init", False)
+        config.override("backstory_len", 7)
+        config.override("mask_budget", 10)
+        config.override("back_frac", 0.75)
+        config.override("multi_sys_trace", True)
+        config.override("max_sys_trace", min(25, config.num_tasks))
+        config.override("single_system", False)
+        config.override("zero_cut", False)
+        config.override("needle_in_haystack", False)
+        config.override("needle_final_seg_extended", False)
+        config.override("datasource", 'val')
+        config.override("num_sys_haystack", 19)
+        config.override("len_seg_haystack", 10)
+        config.override("num_haystack_examples", 200)
+        config.override("num_test_traces_configs", config.num_sys_haystack if config.needle_in_haystack and (not config.needle_final_seg_extended) else 1 if config.needle_in_haystack and config.needle_final_seg_extended else config.num_val_tasks if config.zero_cut else 1)
+        config.override("devices", [0])
+        config.override("train_steps", 10080000)
+        config.override("num_epochs", 1)
+        config.override("train_int", 1000)
+        config.override("use_true_len", False)
+        config.override("batch_size", 640)
+        config.override("acc_grad_batch", 1)
+        config.override("train_data_workers", 5)
+        config.override("test_batch_size", 512)
+        config.override("test_data_workers", 7)
+        config.override("model_type", 'GPT2')
+        config.override("use_pos_emb", True)
+        config.override("n_positions", 250 - config.mask_budget * config.backstory_len if config.mem_suppress and (not config.masking) else 250)
+        config.override("n_embd", 192)
+        config.override("n_interm_embd", 10)
+        config.override("n_layer", 24)
+        config.override("n_head", 12)
+        config.override("n_dims_in", int(config.ny + 2 * config.max_sys_trace + 2) if config.multi_sys_trace else config.ny)
+        config.override("n_dims_out", config.ny)
+        config.override("d_model", 512)
+        config.override("learning_rate", np.sqrt(len(config.devices) * config.batch_size / 512) * 0.833333333 * 1.584893192461114e-05)
+        config.override("weight_decay", 0.01)
+        config.override("gradient_clip_algorithm", 'norm')
+        config.override("gradient_clip_val", 1.0)
+
     else:
         raise ValueError("Model name not recognized. Please choose from the following: gauss, gauss_tiny, gauss_small, gauss_big, gauss_nope, ortho, ortho_tiny, ortho_small, ortho_big, ortho_nope, ident, ident_tiny, ident_small, ident_big, ident_nope")
 
@@ -4069,6 +4334,7 @@ if __name__ == '__main__':
     parser.add_argument('--backstory_test', help='Boolean. Use reverse-dynamics backstories for validation needle-in-haystack traces.', action='store_true')
     parser.add_argument('--eval_mask_only_init', help='Boolean. At eval time, controls backstory placement for backstory_train / iid_gaussian_test / backstory_test. Default (flag off): backstories inserted at every haystack segment. Flag on: backstories inserted only at the initial segment (targets the backstory_train_init data file; outputs tagged eval_init_ to avoid clashing with the base run).', action='store_true')
     parser.add_argument('--eval_backstory_len', type=int, default=None, help='Integer. At eval time, force backstory_len to this value for data loading/generation. Output artifacts get an eval_backlen_{N}_ tag to avoid clashing with the base run.')
+    parser.add_argument('--eval_sys_subset', type=str, default=None, choices=["masked", "unmasked"], help='String, needle-in-haystack only. Restrict the enumerated system range to the masked subset [0, ceil(back_frac*num_tasks)) or the unmasked subset [ceil(back_frac*num_tasks), num_tasks). Outputs tagged sys_subset_{masked,unmasked}_ and placed in a sys_subset_{masked,unmasked}/ figure subdirectory.')
 
 
 
@@ -4177,6 +4443,8 @@ if __name__ == '__main__':
     eval_mask_only_init = args.eval_mask_only_init
     print("eval_backstory_len arg", args.eval_backstory_len)
     eval_backstory_len = args.eval_backstory_len
+    print("eval_sys_subset arg", args.eval_sys_subset)
+    eval_sys_subset = args.eval_sys_subset
 
 
 
@@ -4292,6 +4560,10 @@ if __name__ == '__main__':
     if config.eval_backstory_len is not None:
         print(f"Eval override: forcing backstory_len={config.eval_backstory_len} (outputs tagged eval_backlen_{config.eval_backstory_len}_)\n\n\n")
 
+    config.override("eval_sys_subset", eval_sys_subset)
+    if config.eval_sys_subset is not None:
+        print(f"Eval override: restricting system enumeration to subset={config.eval_sys_subset!r} (outputs tagged sys_subset_{config.eval_sys_subset}_)\n\n\n")
+
     
     # Get the class variables in dictionary format
     config_dict  = {
@@ -4384,6 +4656,19 @@ if __name__ == '__main__':
         else:
             if config.datasource == "train" or config.datasource == "backstory_train":
                 num_haystack_examples = config.num_tasks - config.max_sys_trace
+                subset = getattr(config, "eval_sys_subset", None)
+                if subset in ("masked", "unmasked"):
+                    threshold = math.ceil(config.back_frac * config.num_tasks)
+                    if subset == "masked":
+                        num_haystack_examples = max(0, threshold - config.num_sys_haystack)
+                    else:  # "unmasked"
+                        num_haystack_examples = max(0, (config.num_tasks - threshold) - config.num_sys_haystack)
+                    if num_haystack_examples == 0:
+                        raise ValueError(
+                            f"eval_sys_subset={subset!r} produces zero valid examples for "
+                            f"back_frac={config.back_frac}, num_tasks={config.num_tasks}, "
+                            f"num_sys_haystack={config.num_sys_haystack}."
+                        )
             elif config.zero_cut:
                 num_haystack_examples = 1
             else:

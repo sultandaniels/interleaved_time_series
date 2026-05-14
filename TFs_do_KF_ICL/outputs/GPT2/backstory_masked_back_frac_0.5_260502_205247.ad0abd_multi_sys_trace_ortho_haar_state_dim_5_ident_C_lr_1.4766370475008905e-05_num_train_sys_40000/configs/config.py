@@ -39,13 +39,12 @@ class Config(object, metaclass=Singleton):
     backstory_test = False #add reverse-dynamics backstories for validation data only (mirror of iid_gaussian_test, but uses reverse dynamics)
     eval_mask_only_init = False #eval-time override: force mask_only_init=True so evaluation uses the backstory_train_init data file, without polluting output names of the base training run
     eval_backstory_len = None #eval-time override: force backstory_len to this value (int) when generating/loading test data; output artifacts get an eval_backlen_{N}_ tag to avoid clashing with the base run
-    eval_sys_subset = None #eval-time override (needle-in-haystack only): restrict the enumerated system range. None -> full range (default). "masked" -> indices in [0, ceil(back_frac*num_tasks)); "unmasked" -> indices in [ceil(back_frac*num_tasks), num_tasks). Output artifacts get a sys_subset_{masked,unmasked}_ tag and a sys_subset_{masked,unmasked}/ figure subdirectory.
     cached_data = False #use cached data
     backstory = True #use backstories
     mask_only_init = False #only mask the initial segment
     backstory_len = 7#ny + 2 #length of the backstory
     mask_budget = 10 #max # of systems that will be masked on first appearance (alpha)
-    back_frac = 0.25 #fraction of systems that will have backstories
+    back_frac = 0.5 #fraction of systems that will have backstories
 
     #experiment settings
     multi_sys_trace = True #have multiple systems in a single trace

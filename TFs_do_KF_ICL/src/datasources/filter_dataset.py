@@ -185,12 +185,17 @@ def populate_traces(config, num_tasks, entries, test=False, train_conv=False, tr
         if config.zero_cut and test: #zero cut test
             sys_inds = [trace_conf] #set the system index to the trace_conf
         elif config.needle_in_haystack and test:
+            subset = getattr(config, "eval_sys_subset", None)
+            if subset == "unmasked":
+                base = math.ceil(config.back_frac * num_tasks)
+            else:
+                base = 0  # "masked" or None -> enumeration starts at 0
             if config.fix_needle and config.num_sys_haystack == 2:
-                start_sys = 0
+                start_sys = base
                 sys_inds = [start_sys, start_sys + example + 1] #Fix the needle to be the same system for each example
                 # sys_inds = [start_sys + example + 1, start_sys] #Fix the other system to be the same system for each example
             else:
-                sys_inds = np.arange(example, example + sys_in_trace) #set the system indices for the specific example
+                sys_inds = np.arange(base + example, base + example + sys_in_trace) #set the system indices for the specific example
         else:
             #uniformly at random select sys_in_traces numbers between 0 and num_tasks without replacement for the system indices
             rng = np.random.default_rng()
