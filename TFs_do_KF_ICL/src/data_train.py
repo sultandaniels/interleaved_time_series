@@ -22,6 +22,7 @@ import shutil
 import time
 from get_last_checkpoint import get_last_checkpoint, split_path, find_smallest_step_subdir
 from haystack_plots import haystack_plots, load_quartiles_ckpt_files, haystack_plots_train_conv_full, haystack_plots_needle_full
+from path_tags import sys_subset_filename_tag
 from gen_pred_cktps import gen_pred_ckpts
 from core.training import mem_suppress_ckpt_path
 import resource
@@ -3842,7 +3843,6 @@ def set_config_params(config, model_name):
         config.override("zero_cut", False)
         config.override("needle_in_haystack", False)
         config.override("needle_final_seg_extended", False)
-        config.override("datasource", 'val')
         config.override("num_sys_haystack", 19)
         config.override("len_seg_haystack", 10)
         config.override("num_haystack_examples", 200)
@@ -3908,7 +3908,6 @@ def set_config_params(config, model_name):
         config.override("zero_cut", False)
         config.override("needle_in_haystack", False)
         config.override("needle_final_seg_extended", False)
-        config.override("datasource", 'val')
         config.override("num_sys_haystack", 19)
         config.override("len_seg_haystack", 10)
         config.override("num_haystack_examples", 200)
@@ -3974,7 +3973,6 @@ def set_config_params(config, model_name):
         config.override("zero_cut", False)
         config.override("needle_in_haystack", False)
         config.override("needle_final_seg_extended", False)
-        config.override("datasource", 'val')
         config.override("num_sys_haystack", 19)
         config.override("len_seg_haystack", 10)
         config.override("num_haystack_examples", 200)
@@ -4040,7 +4038,6 @@ def set_config_params(config, model_name):
         config.override("zero_cut", False)
         config.override("needle_in_haystack", False)
         config.override("needle_final_seg_extended", False)
-        config.override("datasource", 'val')
         config.override("num_sys_haystack", 19)
         config.override("len_seg_haystack", 10)
         config.override("num_haystack_examples", 200)
@@ -4069,6 +4066,7 @@ def set_config_params(config, model_name):
         config.override("weight_decay", 0.01)
         config.override("gradient_clip_algorithm", 'norm')
         config.override("gradient_clip_val", 1.0)
+
 
     else:
         raise ValueError("Model name not recognized. Please choose from the following: gauss, gauss_tiny, gauss_small, gauss_big, gauss_nope, ortho, ortho_tiny, ortho_small, ortho_big, ortho_nope, ident, ident_tiny, ident_small, ident_big, ident_nope")
@@ -4229,7 +4227,7 @@ def plot_needles(config, num_sys, output_dir, model_dir, experiment, num_haystac
 
         #check for err_lss_examples at the last ckpt
         errs_dir = model_dir + experiment + f"/prediction_errors{config.C_dist}_step={pred_ckpt_step}.ckpt"
-        errs_loc = errs_dir + f"/needle_haystack_len_{num_sys}_{config.datasource}_{config.val_dataset_typ}_state_dim_{config.nx}_" + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("paren_swap_" if config.paren_swap else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + ("eval_init_" if config.eval_mask_only_init else "") + (f"eval_backlen_{config.eval_backstory_len}_" if config.eval_backstory_len is not None else "")
+        errs_loc = errs_dir + f"/needle_haystack_len_{num_sys}_{config.datasource}_{config.val_dataset_typ}_state_dim_{config.nx}_" + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("paren_swap_" if config.paren_swap else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + ("eval_init_" if config.eval_mask_only_init else "") + (f"eval_backlen_{config.eval_backstory_len}_" if config.eval_backstory_len is not None else "") + sys_subset_filename_tag(config)
 
         if not os.path.exists(errs_loc + "err_lss_examples.pkl") and not desktop:
             print(f"err_lss_examples.pkl does not exist for non train conv at early stop ckpt")
@@ -4656,19 +4654,6 @@ if __name__ == '__main__':
         else:
             if config.datasource == "train" or config.datasource == "backstory_train":
                 num_haystack_examples = config.num_tasks - config.max_sys_trace
-                subset = getattr(config, "eval_sys_subset", None)
-                if subset in ("masked", "unmasked"):
-                    threshold = math.ceil(config.back_frac * config.num_tasks)
-                    if subset == "masked":
-                        num_haystack_examples = max(0, threshold - config.num_sys_haystack)
-                    else:  # "unmasked"
-                        num_haystack_examples = max(0, (config.num_tasks - threshold) - config.num_sys_haystack)
-                    if num_haystack_examples == 0:
-                        raise ValueError(
-                            f"eval_sys_subset={subset!r} produces zero valid examples for "
-                            f"back_frac={config.back_frac}, num_tasks={config.num_tasks}, "
-                            f"num_sys_haystack={config.num_sys_haystack}."
-                        )
             elif config.zero_cut:
                 num_haystack_examples = 1
             else:
@@ -4681,6 +4666,25 @@ if __name__ == '__main__':
 
         output_dir, ckpt_dir, experiment_name = set_config_params(config, model_name)
         update_dataset_typ(config, args.dataset_typ)
+
+        # Apply eval_sys_subset cap AFTER set_config_params so config.back_frac /
+        # config.num_tasks / config.num_sys_haystack reflect the model's elif-branch values.
+        if config.datasource in ("train", "backstory_train"):
+            subset = getattr(config, "eval_sys_subset", None)
+            if subset in ("masked", "unmasked"):
+                threshold = math.ceil(config.back_frac * config.num_tasks)
+                if subset == "masked":
+                    num_haystack_examples = max(0, threshold - config.num_sys_haystack + 1)
+                else:  # "unmasked"
+                    num_haystack_examples = max(0, (config.num_tasks - threshold) - config.num_sys_haystack + 1)
+                if num_haystack_examples == 0:
+                    raise ValueError(
+                        f"eval_sys_subset={subset!r} produces zero valid examples for "
+                        f"back_frac={config.back_frac}, num_tasks={config.num_tasks}, "
+                        f"num_sys_haystack={config.num_sys_haystack}."
+                    )
+                config.override("num_haystack_examples", num_haystack_examples)
+
         config.override("mask_only_init", bool(config.eval_mask_only_init))
         config.override("iid_gaussian", bool(config.iid_gaussian_test))
         if config.eval_backstory_len is not None:
@@ -4832,7 +4836,7 @@ if __name__ == '__main__':
 
 
                         errs_dir = model_dir + experiment + f"/prediction_errors{config.C_dist}_step={ckpt_step}.ckpt"
-                        errs_loc = errs_dir + f"/train_conv_needle_haystack_len_{num_sys}_{config.datasource}_{config.val_dataset_typ}_state_dim_{config.nx}_" + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("paren_swap_" if config.paren_swap else "")  + ("new_hay_insert_" if config.new_hay_insert else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + ("eval_init_" if config.eval_mask_only_init else "") + (f"eval_backlen_{config.eval_backstory_len}_" if config.eval_backstory_len is not None else "")
+                        errs_loc = errs_dir + f"/train_conv_needle_haystack_len_{num_sys}_{config.datasource}_{config.val_dataset_typ}_state_dim_{config.nx}_" + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("paren_swap_" if config.paren_swap else "")  + ("new_hay_insert_" if config.new_hay_insert else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + ("eval_init_" if config.eval_mask_only_init else "") + (f"eval_backlen_{config.eval_backstory_len}_" if config.eval_backstory_len is not None else "") + sys_subset_filename_tag(config)
 
 
                         if os.path.exists(errs_loc + "err_lss_examples.pkl"):
@@ -5019,7 +5023,7 @@ if __name__ == '__main__':
         print(f"model: {model}")
         print(f"model.num_heads: {model.n_head}")
         
-        output_dir, ckpt_dir, experiment_name = setup_train(model, train_mix_dist, train_mix_state_dim)
+        output_dir, ckpt_dir, experiment_name = setup_train(model, train_mix_dist, train_mix_state_dim, model_name=model_name)
 
         # replace ckpt_path with the path to the checkpoint file
         if config.acc:

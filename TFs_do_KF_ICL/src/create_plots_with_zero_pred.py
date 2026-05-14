@@ -23,6 +23,7 @@ from models import GPT2, CnnKF
 from utils import RLS, plot_errs, plot_errs_conv, plot_errs_multi_sys
 from datasources import filter_dataset
 from datasources.filter_dataset import populate_traces, special_tokens, add_backstories
+from path_tags import sys_subset_filename_tag, sys_subset_figure_subdir
 from collect_data import collect_data
 import linalg_helpers as la
 
@@ -1359,7 +1360,7 @@ def compute_errors_multi_sys(config, tf, run_OLS=True, train_conv=False, run_kf=
     
     #create a directory to save the prediction errors
     errs_dir = parent_parent_dir + f"/prediction_errors" + ("_spec_C" if config.needle_in_haystack and config.datasource == "train_systems" and config.multi_sys_trace else f"{config.C_dist}") + f"_step={ckpt_steps}.ckpt"
-    errs_loc = errs_dir + f"/" + ("train_conv_" if train_conv else "") + ("single_system_" if config.single_system else "") + ("zero_cut_" if config.zero_cut else "") + (f"needle_haystack_len_{config.num_sys_haystack}_{config.datasource}_" if config.needle_in_haystack else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + ("eval_init_" if config.eval_mask_only_init else "") + (f"eval_backlen_{config.eval_backstory_len}_" if config.eval_backstory_len is not None else "") + f"{config.val_dataset_typ}_state_dim_{config.nx}_err_lss.pkl"
+    errs_loc = errs_dir + f"/" + ("train_conv_" if train_conv else "") + ("single_system_" if config.single_system else "") + ("zero_cut_" if config.zero_cut else "") + (f"needle_haystack_len_{config.num_sys_haystack}_{config.datasource}_" if config.needle_in_haystack else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + ("eval_init_" if config.eval_mask_only_init else "") + (f"eval_backlen_{config.eval_backstory_len}_" if config.eval_backstory_len is not None else "") + sys_subset_filename_tag(config) + f"{config.val_dataset_typ}_state_dim_{config.nx}_err_lss.pkl"
 
     if os.path.exists(errs_loc):
         with open(errs_loc, 'rb') as f:
@@ -2170,7 +2171,7 @@ def needle_in_haystack_preds(config, model, ckpt_steps, parent_parent_dir, errs_
     print(f"config.num_haystack_examples: {config.num_haystack_examples}")
 
     save_errs_dir = parent_parent_dir + f"/prediction_errors" + ("_spec_C" if config.needle_in_haystack and config.datasource == "train_systems" and config.multi_sys_trace else f"{config.C_dist}") + f"_step={ckpt_steps}.ckpt"
-    save_errs_loc = errs_dir + f"/" + ("single_system_" if config.single_system else "") + ("train_conv_" if train_conv else "")+ ("zero_cut_" if config.zero_cut else "") + (f"needle_haystack_len_{config.num_sys_haystack}_{config.datasource}_" if config.needle_in_haystack else f"mult_cut_{config.datasource}_") + ("fin_seg_ext_" if config.needle_in_haystack and config.needle_final_seg_extended else "") + f"{config.val_dataset_typ}_state_dim_{config.nx}_" + ("new_hay_insert_" if config.new_hay_insert else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("paren_swap_" if config.paren_swap else "") + (f"len_seg_haystack_{config.len_seg_haystack}" if config.len_seg_haystack != 10 else "")+ ("identical_haystack_" if config.identical_haystack else "")  + ("repeat_haystack_" if config.repeat_haystack else "") + ("fake_out_" if config.fake_out else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + ("eval_init_" if config.eval_mask_only_init else "") + (f"eval_backlen_{config.eval_backstory_len}_" if config.eval_backstory_len is not None else "")
+    save_errs_loc = errs_dir + f"/" + ("single_system_" if config.single_system else "") + ("train_conv_" if train_conv else "")+ ("zero_cut_" if config.zero_cut else "") + (f"needle_haystack_len_{config.num_sys_haystack}_{config.datasource}_" if config.needle_in_haystack else f"mult_cut_{config.datasource}_") + ("fin_seg_ext_" if config.needle_in_haystack and config.needle_final_seg_extended else "") + f"{config.val_dataset_typ}_state_dim_{config.nx}_" + ("new_hay_insert_" if config.new_hay_insert else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("paren_swap_" if config.paren_swap else "") + (f"len_seg_haystack_{config.len_seg_haystack}" if config.len_seg_haystack != 10 else "")+ ("identical_haystack_" if config.identical_haystack else "")  + ("repeat_haystack_" if config.repeat_haystack else "") + ("fake_out_" if config.fake_out else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + ("eval_init_" if config.eval_mask_only_init else "") + (f"eval_backlen_{config.eval_backstory_len}_" if config.eval_backstory_len is not None else "") + sys_subset_filename_tag(config)
     
 
     err_lss_all = {}

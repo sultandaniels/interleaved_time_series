@@ -8,6 +8,7 @@ from datetime import datetime
 import os
 from data_processing import gen_ckpt_steps
 from conv_plots_funcs import get_seg_starts_per_config
+from path_tags import sys_subset_filename_tag, sys_subset_figure_subdir
 import torch
 import gc
 from core.config import Config
@@ -601,7 +602,7 @@ def plot_haystack_train_conv_pretrain_x_axis(config, colors, fin_quartiles_ckpt,
     now = datetime.now()
     timestamp = now.strftime("%Y%m%d_%H%M%S")
 
-    figure_dir = f"../outputs/GPT2" + ("_NoPE" if nope else "") + f"/{experiment}/figures/multi_cut/pretrain_x_axis/" + (f"{config.datasource}/" if config.datasource != "val" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens/" if config.irrelevant_tokens else "") + ("same_tokens/" if config.same_tokens else "") + ("paren_swap/" if config.paren_swap else "") 
+    figure_dir = f"../outputs/GPT2" + ("_NoPE" if nope else "") + f"/{experiment}/figures/multi_cut/pretrain_x_axis/" + (f"{config.datasource}/" if config.datasource != "val" else "") + sys_subset_figure_subdir(config) + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens/" if config.irrelevant_tokens else "") + ("same_tokens/" if config.same_tokens else "") + ("paren_swap/" if config.paren_swap else "") 
     os.makedirs(figure_dir, exist_ok=True)
 
     fig.tight_layout()
@@ -613,7 +614,7 @@ def plot_haystack_train_conv_pretrain_x_axis(config, colors, fin_quartiles_ckpt,
         
     print("saving figure")
     plt_type = "2_after" #"1_after" #"4_into_init"
-    fig.savefig(figure_dir + ("only_init_" if only_init else "") + ("backstory_" if config.backstory and config.mem_suppress else ("init_seg_" if config.init_seg and config.mem_suppress else "")) + ("masked_" if config.masking and config.mem_suppress else ("unmasked_" if not config.masking and config.mem_suppress else "")) + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("new_hay_insert_" if config.new_hay_insert else "") + (f"late_start_{config.late_start}_" if config.late_start is not None else "") + ("abs_err_" if abs_err else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + ("eval_init_" if config.eval_mask_only_init else "") + (f"eval_backlen_{config.eval_backstory_len}_" if config.eval_backstory_len is not None else "") + f"{valA}_embd_dim_{config.n_embd}_train_conv_pretrain_x_axis_all_models_{plt_type}_haystack_len_{haystack_len}_{timestamp}_" + "linearscale.pdf", transparent=True, format="pdf")
+    fig.savefig(figure_dir + ("only_init_" if only_init else "") + ("backstory_" if config.backstory and config.mem_suppress else ("init_seg_" if config.init_seg and config.mem_suppress else "")) + ("masked_" if config.masking and config.mem_suppress else ("unmasked_" if not config.masking and config.mem_suppress else "")) + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("new_hay_insert_" if config.new_hay_insert else "") + (f"late_start_{config.late_start}_" if config.late_start is not None else "") + ("abs_err_" if abs_err else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + ("eval_init_" if config.eval_mask_only_init else "") + (f"eval_backlen_{config.eval_backstory_len}_" if config.eval_backstory_len is not None else "") + sys_subset_filename_tag(config) + f"{valA}_embd_dim_{config.n_embd}_train_conv_pretrain_x_axis_all_models_{plt_type}_haystack_len_{haystack_len}_{timestamp}_" + "linearscale.pdf", transparent=True, format="pdf")
     if model_count == 3:
         plt.show()
         

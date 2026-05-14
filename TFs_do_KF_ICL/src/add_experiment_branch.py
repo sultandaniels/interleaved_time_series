@@ -29,6 +29,7 @@ DEFAULT_SKIP_FIELDS = (
     "fully_reproducible",
     "eval_mask_only_init",
     "eval_backstory_len",
+    "datasource",
 )
 
 ELIF_INDENT = "    "

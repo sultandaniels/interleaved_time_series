@@ -64,7 +64,7 @@ logger = logging.getLogger(__name__)
 config = Config()
 
 
-def setup_train(model, train_mix_dist=False, train_mix_state_dim=False):
+def setup_train(model, train_mix_dist=False, train_mix_state_dim=False, model_name=None):
     output_dir = None
     if config.ckpt_path is not None and config.ckpt_path != '':
         output_dir = "/".join(config.ckpt_path.split("/")[:-2])
@@ -92,6 +92,28 @@ def setup_train(model, train_mix_dist=False, train_mix_state_dim=False):
 
         # Write source code to output dir
         config.write_file_contents(output_dir)
+
+        if model_name:
+            try:
+                import add_experiment_branch
+                add_experiment_branch.main([
+                    "--experiment-dir", output_dir,
+                    "--model-name", model_name,
+                ])
+                logger.info(f"Auto-registered {model_name!r} in data_train.py")
+            except Exception as exc:
+                logger.warning(
+                    f"Auto-register of {model_name!r} in data_train.py failed: {exc}. "
+                    f"Training will continue; you can register manually with "
+                    f"`python src/add_experiment_branch.py --experiment-dir {output_dir} "
+                    f"--model-name {model_name}`."
+                )
+        else:
+            logger.info(
+                "No --model_name supplied; skipping auto-register. Register later with "
+                f"`python src/add_experiment_branch.py --experiment-dir {output_dir} "
+                "--model-name <name>`."
+            )
 
     print("os.path.isdir(output_dir)", os.path.isdir(output_dir))
     # Log messages to file
