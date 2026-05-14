@@ -4211,6 +4211,17 @@ def get_test_data(config, experiment_name, num_haystack_ex=50):
 
         max_num_sys = num_haystack_ex + config.max_sys_trace #max number of systems to use for testing
 
+        # unmasked subset enumerates sys indices starting at ceil(back_frac*num_tasks);
+        # extend the slice so those high indices stay in range. start_sys stays 0 so
+        # absolute indices in populate_traces line up with positions in the sliced array.
+        subset = getattr(config, "eval_sys_subset", None)
+        if subset == "unmasked":
+            threshold = math.ceil(config.back_frac * config.num_tasks)
+            max_num_sys = min(
+                config.num_tasks,
+                max(max_num_sys, threshold + num_haystack_ex + config.max_sys_trace),
+            )
+
         #get the sim_objs for the training data
         with open (path + f"train_{config.dataset_typ}{config.C_dist}_state_dim_{config.nx}_sim_objs.pkl", "rb") as f:
             sim_objs = pickle.load(f)
@@ -4365,7 +4376,9 @@ if __name__ == '__main__':
     parser.add_argument('--train_mix_dist', help='Boolean. generate training data from a mixture of gaussian, uppertriA, and rotdiagA', action='store_true')
     parser.add_argument('--train_mix_state_dim', help='Boolean. generate training data from a mixture of state dimensions', action='store_true')
     parser.add_argument('--train_mix_C', help='Boolean. generate training data from a mixture of C dists', action='store_true')
-    parser.add_argument('--part_train_set', help='Boolean. train on a subset of a previous experiments train dataset', action='store_true')
+    parser.add_argument('--part_train_set', help='Boolean. Train on a subset pickle produced by collect_data.py with reuse_train_systems=True. When set, --part_train_num_sys (N) and --part_train_traces_per_sys (K) are required and the loader uses train_{dataset_typ}{C_dist}_state_dim_{nx}_first_{N}_sys_{K}_x0.pkl.', action='store_true')
+    parser.add_argument('--part_train_num_sys', type=int, default=None, help='Integer (N). Number of systems in the part_train_set pickle (the N in _first_{N}_sys_{K}_x0).')
+    parser.add_argument('--part_train_traces_per_sys', type=int, default=None, help='Integer (K). Traces per system in the part_train_set pickle (the K in _first_{N}_sys_{K}_x0).')
     parser.add_argument('--model_name', type=str, help='Name of the model to use')
     parser.add_argument('--abs_err', help='Boolean. Do not take the ratios of the gauss errors', action='store_true')
     parser.add_argument('--desktop', help='Boolean. Run on desktop', action='store_true')
@@ -4440,6 +4453,22 @@ if __name__ == '__main__':
     train_mix_C = args.train_mix_C
     print("part_train_set arg", args.part_train_set)
     part_train_set = args.part_train_set
+    print("part_train_num_sys arg", args.part_train_num_sys)
+    part_train_num_sys = args.part_train_num_sys
+    print("part_train_traces_per_sys arg", args.part_train_traces_per_sys)
+    part_train_traces_per_sys = args.part_train_traces_per_sys
+    if part_train_set:
+        if part_train_num_sys is None or part_train_traces_per_sys is None:
+            parser.error(
+                "--part_train_set requires both --part_train_num_sys N and "
+                "--part_train_traces_per_sys K (the loader needs them to build "
+                "the _first_{N}_sys_{K}_x0 suffix)."
+            )
+    elif part_train_num_sys is not None or part_train_traces_per_sys is not None:
+        parser.error(
+            "--part_train_num_sys / --part_train_traces_per_sys were supplied "
+            "without --part_train_set; pass --part_train_set to enable subset loading."
+        )
     print("model_name arg", args.model_name)
     model_name = args.model_name
     print("abs arg", args.abs_err)
@@ -4631,7 +4660,13 @@ if __name__ == '__main__':
     if config.eval_sys_subset is not None:
         print(f"Eval override: restricting system enumeration to subset={config.eval_sys_subset!r} (outputs tagged sys_subset_{config.eval_sys_subset}_)\n\n\n")
 
-    
+    config.override("part_train_set", part_train_set)
+    config.override("part_train_num_sys", part_train_num_sys)
+    config.override("part_train_traces_per_sys", part_train_traces_per_sys)
+    if config.part_train_set:
+        print(f"Train override: loading subset pickle with suffix _first_{config.part_train_num_sys}_sys_{config.part_train_traces_per_sys}_x0\n\n\n")
+
+
     # Get the class variables in dictionary format
     config_dict  = {
         "seed": 0,

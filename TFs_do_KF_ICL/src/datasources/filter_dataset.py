@@ -5,6 +5,7 @@ import torch
 import scipy.stats as stats
 import pickle
 from linalg_helpers import print_matrix
+from path_tags import part_train_subset_tag
 import os
 import math
 
@@ -553,7 +554,7 @@ class FilterDataset(Dataset):
         self.use_true_len = use_true_len
         if config.mem_suppress:
             #load the sim_objs
-            with open(f"{os.environ.get('BASE_PATH')}train_and_test_data/{config.val_dataset_typ}/train_{config.val_dataset_typ}{config.C_dist}_state_dim_{config.nx}_sim_objs.pkl", "rb") as f:
+            with open(f"{os.environ.get('BASE_PATH')}train_and_test_data/{config.val_dataset_typ}/train_{config.val_dataset_typ}{config.C_dist}_state_dim_{config.nx}{part_train_subset_tag(config)}_sim_objs.pkl", "rb") as f:
                 sim_objs = pickle.load(f)
                 self.sim_objs = sim_objs
 

@@ -16,3 +16,16 @@ def sys_subset_filename_tag(config) -> str:
 def sys_subset_figure_subdir(config) -> str:
     s = getattr(config, "eval_sys_subset", None)
     return f"sys_subset_{s}/" if s else ""
+
+
+def part_train_subset_tag(config) -> str:
+    if not getattr(config, "part_train_set", False):
+        return ""
+    n = getattr(config, "part_train_num_sys", None)
+    k = getattr(config, "part_train_traces_per_sys", None)
+    if n is None or k is None:
+        raise ValueError(
+            "part_train_set is True but part_train_num_sys and/or "
+            "part_train_traces_per_sys are not set on config."
+        )
+    return f"_first_{n}_sys_{k}_x0"
