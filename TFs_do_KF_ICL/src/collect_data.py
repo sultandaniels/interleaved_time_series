@@ -9,7 +9,7 @@ from models import GPT2
 from dyn_models.ortho_sync_data import gen_ortho_sync_data
 import argparse
 
-os.environ["BASE_PATH"] = "/data/shared/ICL_Kalman_Experiments/"
+os.environ.setdefault("BASE_PATH", "/data/shared/ICL_Kalman_Experiments/")
 
 def mix_ind(i, total_number, labels, counts, max_ind=2):
     #currently function only works for 
@@ -24,14 +24,35 @@ def mix_ind(i, total_number, labels, counts, max_ind=2):
     return index, counts
 
 #modify collect data so that it can tolerate multiple traces for one system
-def collect_data(config, output_dir, only="", train_mix_dist=False, train_mix_state_dim=False, train_mix_C=False, specific_sim_objs=None, opposite_ortho=False):
+def collect_data(config, output_dir, only="", train_mix_dist=False, train_mix_state_dim=False, train_mix_C=False, specific_sim_objs=None, opposite_ortho=False, load_sim_objs_path=None, num_systems=None, num_traces_per_system=1):
 
-    
+
     if specific_sim_objs:
         only = "val"
         config.override("num_val_tasks", len(specific_sim_objs))
         config.override("val_dataset_typ", "specA")
         config.override("C_dist", "_spec_C")
+
+    reuse_train_systems = load_sim_objs_path is not None
+    if reuse_train_systems:
+        with open(load_sim_objs_path, "rb") as f:
+            loaded_sim_objs = pickle.load(f)
+        if num_systems is not None:
+            if num_systems > len(loaded_sim_objs):
+                raise ValueError(
+                    f"--num_systems={num_systems} exceeds available "
+                    f"{len(loaded_sim_objs)} in {load_sim_objs_path}"
+                )
+            loaded_sim_objs = loaded_sim_objs[:num_systems]
+        if only and only != "train":
+            raise ValueError(
+                f"--load_sim_objs_path is only supported for training data; "
+                f"got only={only!r}"
+            )
+        only = "train"
+        config.override("num_tasks", len(loaded_sim_objs))
+        config.override("num_traces", {**config.num_traces, "train": num_traces_per_system})
+        specific_sim_objs = loaded_sim_objs
 
 
     if opposite_ortho:
@@ -118,7 +139,7 @@ def collect_data(config, output_dir, only="", train_mix_dist=False, train_mix_st
 
                     specific_sim_objs = [fsim]
                     
-                fsim, sample = generate_lti_sample(config.C_dist, config.dataset_typ if name == "train" else config.val_dataset_typ, config.num_traces[name], config.n_positions, config.nx, config.ny, sigma_w=1e-1, sigma_v=1e-1, n_noise=config.n_noise, cond_num=cond_nums[int(np.floor(config.distinct_cond_nums*i/num_tasks))] if ((name == "train" and config.dataset_typ == "cond_num") or (name == "val" and config.val_dataset_typ == "cond_num")) else None, specific_sim_obj=(specific_sim_objs[0] if opposite_ortho and specific_sim_objs else (specific_sim_objs[i] if specific_sim_objs else None)))
+                fsim, sample = generate_lti_sample(config.C_dist, config.dataset_typ if name == "train" else config.val_dataset_typ, config.num_traces[name], config.n_positions, config.nx, config.ny, sigma_w=0.0, sigma_v=0.0, n_noise=config.n_noise, cond_num=cond_nums[int(np.floor(config.distinct_cond_nums*i/num_tasks))] if ((name == "train" and config.dataset_typ == "cond_num") or (name == "val" and config.val_dataset_typ == "cond_num")) else None, specific_sim_obj=(specific_sim_objs[0] if opposite_ortho and specific_sim_objs else (specific_sim_objs[i] if specific_sim_objs else None)))
 
                 if (name == "train" and config.dataset_typ == "cond_num") or (name == "val" and config.val_dataset_typ == "cond_num"):
                     cond_counts[int(np.floor(config.distinct_cond_nums*i/num_tasks))] += 1
@@ -129,11 +150,19 @@ def collect_data(config, output_dir, only="", train_mix_dist=False, train_mix_st
                 # raise Exception("just checking fsim type umich_meta_output_predictor/src/collect_data.py")
                 if opposite_ortho:
                     print(f"fsim.A: {fsim.A}")
-                sim_objs.append(fsim)
+                if reuse_train_systems:
+                    for _ in range(config.num_traces[name]):
+                        sim_objs.append(fsim)
+                else:
+                    sim_objs.append(fsim)
 
         print("Saving", len(samples), "samples for", name)
 
-        loc = f"{output_dir}/"  + ("opposite_ortho_" if opposite_ortho else "") + ("train_systems_" if specific_sim_objs and not opposite_ortho else "") +f"{name}_" + (f"{config.dataset_typ}" if name == "train" else f"{config.val_dataset_typ}") + f"{config.C_dist}" + f"_state_dim_{config.nx}" + ("_dist_mix" if train_mix_dist and name == "train" else "") + ("_state_dim_mix" if train_mix_state_dim and name == "train" else "") + (f"_sync_ind_{sync_ind}" if name == "train" and config.dataset_typ == "ortho_sync" or name == "val" and config.val_dataset_typ == "ortho_sync" else "")
+        subset_tag = (
+            f"_first_{len(loaded_sim_objs)}_sys_{num_traces_per_system}_x0"
+            if reuse_train_systems else ""
+        )
+        loc = f"{output_dir}/"  + ("opposite_ortho_" if opposite_ortho else "") + ("train_systems_" if specific_sim_objs and not opposite_ortho and not reuse_train_systems else "") +f"{name}_" + (f"{config.dataset_typ}" if name == "train" else f"{config.val_dataset_typ}") + f"{config.C_dist}" + f"_state_dim_{config.nx}" + subset_tag + ("_dist_mix" if train_mix_dist and name == "train" else "") + ("_state_dim_mix" if train_mix_state_dim and name == "train" else "") + (f"_sync_ind_{sync_ind}" if name == "train" and config.dataset_typ == "ortho_sync" or name == "val" and config.val_dataset_typ == "ortho_sync" else "")
 
         with open(loc + ".pkl", "wb") as f:
             pickle.dump(samples, f)
@@ -191,6 +220,9 @@ if __name__ == "__main__":
     parser.add_argument('--train_mix_dist', help='Boolean. generate training data from gaussian, uppertriA, and rotdiagA', action='store_true')
     parser.add_argument('--train_mix_state_dim', help='Boolean. generate training data from a mixture of state dimensions', action='store_true')
     parser.add_argument('--opposite_ortho', help='Boolean. generate training data from opposite orthogonal systems', action='store_true')
+    parser.add_argument('--load_sim_objs_path', type=str, default=None, help='Path to an existing _sim_objs.pkl. When set, the listed systems are reused as the source of dynamics matrices instead of generating new ones (train-only).')
+    parser.add_argument('--num_systems', type=int, default=None, help='Use only the first N systems from the loaded sim_objs file. Default: use all systems in the file.')
+    parser.add_argument('--num_traces_per_system', type=int, default=1, help='Number of independent x0 draws (and trace sequences) per system. Each x0 is drawn from the steady-state covariance distribution.')
 
 
     # Parse the arguments
@@ -200,10 +232,16 @@ if __name__ == "__main__":
     print("train_mix_dist:", args.train_mix_dist)
     print("train_mix_state_dim:", args.train_mix_state_dim)
     print("opposite_ortho:", args.opposite_ortho)
+    print("load_sim_objs_path:", args.load_sim_objs_path)
+    print("num_systems:", args.num_systems)
+    print("num_traces_per_system:", args.num_traces_per_system)
 
     train_mix_dist = args.train_mix_dist
     train_mix_state_dim = args.train_mix_state_dim
     opposite_ortho = args.opposite_ortho
+    load_sim_objs_path = args.load_sim_objs_path
+    num_systems = args.num_systems
+    num_traces_per_system = args.num_traces_per_system
 
     # Now you can use the flag
     if args.val:
@@ -214,5 +252,14 @@ if __name__ == "__main__":
         only = ""
 
     config = Config()
-    
-    collect_data(config, f"{os.environ.get('BASE_PATH')}train_and_test_data/ortho_haar", only, train_mix_dist, opposite_ortho=opposite_ortho)
+
+    collect_data(
+        config,
+        f"{os.environ.get('BASE_PATH')}train_and_test_data/ortho_haar",
+        only,
+        train_mix_dist,
+        opposite_ortho=opposite_ortho,
+        load_sim_objs_path=load_sim_objs_path,
+        num_systems=num_systems,
+        num_traces_per_system=num_traces_per_system,
+    )

@@ -2068,8 +2068,10 @@ def interleave_traces(config, ys, num_test_traces_configs, num_trials, ex=None, 
 
     if (config.datasource == "val" or config.datasource == "train_systems"):
         num_trials = config.num_traces["val"]
+        num_tasks_for_sel = config.num_val_tasks
     elif config.datasource == "train" or config.datasource == "backstory_train":
         num_trials = config.num_traces["train"]
+        num_tasks_for_sel = config.num_tasks
         if config.datasource == "backstory_train":
             if config.mask_only_init:
                 config.override("n_positions", config.n_positions + config.backstory_len)
@@ -2130,9 +2132,9 @@ def interleave_traces(config, ys, num_test_traces_configs, num_trials, ex=None, 
         for trial in range(num_trials):
 
             #generate interleaved segments
-            segments, sys_choices, sys_dict, tok_seg_lens, seg_starts, real_seg_lens, sys_inds = populate_val_traces(config, trace_config, trial, config.num_val_tasks, ys, sys_choices, sys_dict, tok_seg_lens, seg_starts, real_seg_lens, sys_inds, ex=ex, sim_objs=sim_objs) # get the first trace  which will set the testing structure
+            segments, sys_choices, sys_dict, tok_seg_lens, seg_starts, real_seg_lens, sys_inds = populate_val_traces(config, trace_config, trial, num_tasks_for_sel, ys, sys_choices, sys_dict, tok_seg_lens, seg_starts, real_seg_lens, sys_inds, ex=ex, sim_objs=sim_objs) # get the first trace  which will set the testing structure
             multi_sys_ys[trace_config, trial] = segments
-        
+
         sys_choices_per_config.append(sys_choices)
         sys_dict_per_config.append(sys_dict)
         tok_seg_lens_per_config.append(tok_seg_lens)
