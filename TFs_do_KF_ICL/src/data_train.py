@@ -4095,7 +4095,6 @@ def set_config_params(config, model_name):
         config.override("iid_gaussian", False)
         config.override("iid_gaussian_test", False)
         config.override("backstory_test", False)
-        config.override("eval_sys_subset", None)
         config.override("cached_data", False)
         config.override("backstory", True)
         config.override("mask_only_init", False)
@@ -4771,23 +4770,17 @@ if __name__ == '__main__':
         output_dir, ckpt_dir, experiment_name = set_config_params(config, model_name)
         update_dataset_typ(config, args.dataset_typ)
 
-        # Apply eval_sys_subset cap AFTER set_config_params so config.back_frac /
-        # config.num_tasks / config.num_sys_haystack reflect the model's elif-branch values.
-        if config.datasource in ("train", "backstory_train"):
-            subset = getattr(config, "eval_sys_subset", None)
-            if subset in ("masked", "unmasked"):
-                threshold = math.ceil(config.back_frac * config.num_tasks)
-                if subset == "masked":
-                    num_haystack_examples = max(0, threshold - config.num_sys_haystack + 1)
-                else:  # "unmasked"
-                    num_haystack_examples = max(0, (config.num_tasks - threshold) - config.num_sys_haystack + 1)
-                if num_haystack_examples == 0:
-                    raise ValueError(
-                        f"eval_sys_subset={subset!r} produces zero valid examples for "
-                        f"back_frac={config.back_frac}, num_tasks={config.num_tasks}, "
-                        f"num_sys_haystack={config.num_sys_haystack}."
-                    )
-                config.override("num_haystack_examples", num_haystack_examples)
+        # set_config_params re-applies the model-block default for
+        # num_haystack_examples (typically =200, intended for training).
+        # Restore the eval-mode value computed above so train/backstory_train
+        # eval uses every available system instead of being clamped to 200.
+        config.override("num_haystack_examples", num_haystack_examples)
+
+        # The eval_sys_subset / val cap is applied per-iteration inside the
+        # `for num_sys in num_sys_haystacks` loop below, where the loop's
+        # actual config.num_sys_haystack value is available. Remember the
+        # post-set_config_params intent here so each iteration starts fresh.
+        orig_num_haystack_examples = config.num_haystack_examples
 
         config.override("mask_only_init", bool(config.eval_mask_only_init))
         config.override("iid_gaussian", bool(config.iid_gaussian_test))
@@ -4879,6 +4872,39 @@ if __name__ == '__main__':
                 else:
                     config.override("n_positions", (config.len_seg_haystack + 2)*(num_sys+1))
                 base_n_positions_for_num_sys = config.n_positions  # save base before any backstory inflation
+
+                # Cap num_haystack_examples so populate_traces' sys_inds (and the
+                # new_hay_insert sys_inds[-1]+1 access) stay within the loaded ys
+                # array for the current num_sys_haystack.
+                new_hay_extra = 1 if config.new_hay_insert else 0
+                cap = None
+                if config.datasource in ("train", "backstory_train"):
+                    subset = getattr(config, "eval_sys_subset", None)
+                    if subset in ("masked", "unmasked"):
+                        threshold = math.ceil(config.back_frac * config.num_tasks)
+                        if subset == "masked":
+                            cap = max(0, threshold - config.num_sys_haystack + 1 - new_hay_extra)
+                        else:  # "unmasked"
+                            cap = max(0, (config.num_tasks - threshold) - config.num_sys_haystack + 1 - new_hay_extra)
+                        if cap == 0:
+                            raise ValueError(
+                                f"eval_sys_subset={subset!r} produces zero valid examples for "
+                                f"back_frac={config.back_frac}, num_tasks={config.num_tasks}, "
+                                f"num_sys_haystack={config.num_sys_haystack}, "
+                                f"new_hay_insert={config.new_hay_insert}."
+                            )
+                elif config.datasource == "val":
+                    cap = max(0, config.num_val_tasks - config.num_sys_haystack + 1 - new_hay_extra)
+                    if cap == 0:
+                        raise ValueError(
+                            f"val datasource produces zero valid examples for "
+                            f"num_val_tasks={config.num_val_tasks}, "
+                            f"num_sys_haystack={config.num_sys_haystack}, "
+                            f"new_hay_insert={config.new_hay_insert}."
+                        )
+                if cap is not None:
+                    num_haystack_examples = min(orig_num_haystack_examples, cap)
+                    config.override("num_haystack_examples", num_haystack_examples)
 
                 if not make_preds:
 

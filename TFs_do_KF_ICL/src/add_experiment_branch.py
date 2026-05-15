@@ -23,12 +23,16 @@ import os
 import sys
 
 
+# Fields skipped when generating an elif block from a saved configs/config.py:
+# anything starting with `eval_` is treated as a CLI-only override and is also
+# filtered out automatically (see `main` below); add other one-off skips here.
 DEFAULT_SKIP_FIELDS = (
     "ckpt_path",
     "seed",
     "fully_reproducible",
     "eval_mask_only_init",
     "eval_backstory_len",
+    "eval_sys_subset",
     "datasource",
 )
 
@@ -188,7 +192,12 @@ def main(argv=None):
     skip_fields = {s.strip() for s in args.skip_fields.split(",") if s.strip()}
 
     fields = parse_config_class(config_path)
-    fields = [(name, value) for name, value in fields if name not in skip_fields]
+    # `eval_*` fields are CLI-only overrides (see core/config.py); copying them
+    # into the model elif block would silently clobber the CLI value at eval time.
+    fields = [
+        (name, value) for name, value in fields
+        if name not in skip_fields and not name.startswith("eval_")
+    ]
 
     elif_block = build_elif_block(args.model_name, experiment_name, fields, args.num_val_tasks)
 

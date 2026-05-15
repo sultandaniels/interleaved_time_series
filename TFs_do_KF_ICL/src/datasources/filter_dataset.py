@@ -464,9 +464,17 @@ def add_backstories(config, sim_objs, segments, mask_idx, sys_appear, sys_choice
     n_masks = 0 #number of sys that have been masked
     i = 0 #segment number in interleaved segments
 
+    # At eval time, eval_sys_subset already restricts sys_inds to the chosen
+    # half via populate_traces. The training-time back_frac filter would
+    # otherwise drop every system in the unmasked range, so bypass it here.
+    subset_active_at_test = test and getattr(config, "eval_sys_subset", None) in ("masked", "unmasked")
+    threshold = math.ceil(config.back_frac * config.num_tasks)
+
     #if config.mask_only_init is True only have the while loop run when i == 0
     while i < len(seg_starts) and (not config.mask_only_init or i == 0):
-        if sys_choices[i] not in sys_appear and real_seg_lens[i] > 0 and sys_choices[i] < math.ceil(config.back_frac*config.num_tasks): #if the system has not appeared before and the segment length is greater than 0
+        if (sys_choices[i] not in sys_appear
+                and real_seg_lens[i] > 0
+                and (subset_active_at_test or sys_choices[i] < threshold)): #if the system has not appeared before and the segment length is greater than 0
             sys_appear.append(sys_choices[i])
 
             x0_ind = seg_starts[i] + 1
