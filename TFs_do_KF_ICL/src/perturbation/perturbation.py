@@ -104,14 +104,14 @@ def compute_median_median_squared_error(config, preds, multi_sys_ys):
     print(f"med_med_se shape: {med_med_se.shape}")
     return med_med_se
 
-def plot_median_squared_error_vs_index(med_med_se):
+def plot_median_squared_error_vs_index(med_med_sem , med_med_se_31000):
     """Plot the median of the median squared error vs index."""
     fig, ax = plt.subplots(1, 1, figsize=(5, 3))
 
     max_ind = 7
     indices = np.arange(max_ind)
     ax.plot(indices, med_med_se[:max_ind], marker="o", color="black", label="step=135000")
-    ax.plot(indices, med_med_se[:max_ind], marker="o", color="blue", label="step=31000")
+    ax.plot(indices, med_med_se_31000[:max_ind], marker="o", color="blue", label="step=31000")
     ax.set_xlabel("Index")
     ax.set_ylabel("Squared Error")
     fig.tight_layout()
