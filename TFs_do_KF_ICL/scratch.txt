@@ -1,3 +1,12 @@
+srun -A benv-dtai-gh --time=00:30:00 --nodes=1 --ntasks-per-node=1 \
+--partition=ghx4 --gpus=1 --mem=120g --pty /bin/bash
+
+module load cuda/12.6
+export PYTHONUSERBASE=/projects/benv/sdaniels2/pyuserbase
+export PATH="$PYTHONUSERBASE/bin:/sw/user/python/miniforge3-pytorch-24.11.3/bin:$PATH"
+python -c "import torch, sys; print(sys.executable); print(torch.__version__, torch.version.cuda, torch.cuda.is_available())"
+
+
 rsync -avh --progress sdaniels2@dtai-login.delta.ncsa.illinois.edu:/projects/benv/sdaniels2/interleaved_time_series/TFs_do_KF_ICL/outputs/GPT2/backstory_unmasked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/needles /home/sultand/interleaved_time_series/TFs_do_KF_ICL/outputs/GPT2/backstory_unmasked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/
 
 
@@ -34,6 +43,8 @@ colors = ['#000000', '#005CAB', '#E31B23', '#FFC325', '#00A651', '#9B59B6']
 find /home/sultand/TFs_do_KF_ICL/outputs/GPT2/250125_202437.caf35b_multi_sys_trace_gaussA_state_dim_10_gauss_C_lr_1.3207437987531975e-05_num_train_sys_40000/checkpoints -name 'step=*.ckpt' | grep -v 'step=[0-9]*[05]00.ckpt' | xargs rm
 
 find /home/ubuntu/gauss-NoPE-GH200/TFs_do_KF_ICL/outputs/GPT2/250125_210849.09203d_multi_sys_trace_ident_state_dim_5_ident_C_lr_1.3207437987531975e-05_num_train_sys_40000/checkpoints -name 'step=*.ckpt' | grep -v 'step=[0-9]*000.ckpt' | xargs -r rm
+
+
 
 
 for i in {1,2}; do CUDA_VISIBLE_DEVICES=0 python data_train.py --make_preds --multi_haystack --model_name ortho_haar_big --datasource train --late_start $i; done
