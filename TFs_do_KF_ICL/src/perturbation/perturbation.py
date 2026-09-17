@@ -44,7 +44,7 @@ def default_output_dir(ckpt_path):
     step_match = re.search(r"step=(\d+)", os.path.basename(ckpt_path))
     step = step_match.group(1) if step_match else "unknown"
     run_dir = os.path.basename(os.path.dirname(os.path.dirname(ckpt_path)))
-    return os.path.join(BASE_PATH, "model_outputs", f"{run_dir}_step{step}")
+    return os.path.join(BASE_PATH, "model_outputs", f"{run_dir}_step={step}")
 
 
 def parse_args():
@@ -87,7 +87,7 @@ def run_inference(model, multi_sys_ys, device, config, max_examples=None):
 
     return preds
 
-def compute_median_median_squared_error(config, preds, multi_sys_ys):
+def compute_quartiles_median_squared_error(config, preds, multi_sys_ys):
     """Compute the median of the median squared error."""
     #take the last config.ny columns of axis=-1 as the true test observations
     multi_sys_ys_true = np.take(multi_sys_ys, np.arange(multi_sys_ys.shape[-1] - config.ny, multi_sys_ys.shape[-1]), axis=-1) #get the true test observations
@@ -100,20 +100,25 @@ def compute_median_median_squared_error(config, preds, multi_sys_ys):
 
     med_se = np.median(errs, axis=-2)  # get the median squared error over traces
     print(f"med_se shape: {med_se.shape}")
-    med_med_se = np.median(med_se, axis=0)[0]  # get the median over systems
-    print(f"med_med_se shape: {med_med_se.shape}")
-    return med_med_se
+    quart_med_se = np.quantile(med_se,[0.25, 0.50, 0.75], axis=0)  # get the median over systems
+    #remove axis 1 from quart_med_se
+    quart_med_se = np.squeeze(quart_med_se, axis=1)
+    print(f"quart_med_se shape: {quart_med_se.shape}")
+    return quart_med_se
 
-def plot_median_squared_error_vs_index(med_med_se , med_med_se_31000):
+def plot_median_squared_error_vs_index(quart_med_se , quart_med_se_31000):
     """Plot the median of the median squared error vs index."""
     fig, ax = plt.subplots(1, 1, figsize=(5, 3))
 
     max_ind = 7
     indices = np.arange(max_ind)
-    ax.plot(indices, med_med_se[:max_ind], marker="o", color="black", label="step=135000")
-    ax.plot(indices, med_med_se_31000[:max_ind], marker="o", color="blue", label="step=31000")
+    ax.plot(indices, quart_med_se[1,:max_ind], marker="o", color="black", label="step=135000")
+    ax.fill_between(indices, quart_med_se[0,:max_ind], quart_med_se[2,:max_ind], color="gray", alpha=0.5)
+    ax.plot(indices, quart_med_se_31000[1, :max_ind], marker="o", color="blue", label="step=31000")
+    ax.fill_between(indices, quart_med_se_31000[0, :max_ind], quart_med_se_31000[2, :max_ind], color="blue", alpha=0.5)
     ax.set_xlabel("Index")
     ax.set_ylabel("Squared Error")
+    ax.legend()
     fig.tight_layout()
 
     os.makedirs("perturbation/medse_vs_index_plots", exist_ok=True)
@@ -149,7 +154,7 @@ def main():
 
     np.save(os.path.join(output_dir, "preds.npy"), preds)
 
-    med_med_se = compute_median_median_squared_error(config, preds, multi_sys_ys)
+    quart_med_se = compute_quartiles_median_squared_error(config, preds, multi_sys_ys)
 
     print(f"preds shape: {preds.shape}\n")
     print(f"Wrote outputs to {output_dir}\n")
@@ -162,11 +167,13 @@ def main():
     #load model
     model_31000 = load_model(config, ckpt_path, args.device)
 
+    start = time.time()
     preds_31000 = run_inference(model_31000, multi_sys_ys, args.device, config, args.max_examples)
+    print(f"Ran inference on {preds_31000.shape[0]*preds_31000.shape[2]} traces in {end - start:.2f} seconds\n")
 
-    med_med_se_31000 = compute_median_median_squared_error(config, preds_31000, multi_sys_ys)
+    quart_med_se_31000 = compute_quartiles_median_squared_error(config, preds_31000, multi_sys_ys)
 
-    plot_median_squared_error_vs_index(med_med_se, med_med_se_31000)
+    plot_median_squared_error_vs_index(quart_med_se, quart_med_se_31000)
 
 
 if __name__ == "__main__":
