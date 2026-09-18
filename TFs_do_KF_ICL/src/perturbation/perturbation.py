@@ -38,6 +38,17 @@ DEFAULT_TRACES_PATH = os.path.join(
     BASE_PATH, "train_and_test_data", "ortho_haar",
     "val_interleaved_traces_ortho_haar_ident_C_haystack_len_1_state_dim_5.pkl",
 )
+TRAIN_TRACES_PATH = os.path.join(
+    BASE_PATH, "train_and_test_data", "ortho_haar",
+    "train_interleaved_traces_ortho_haar_ident_C_haystack_len_1_state_dim_5.pkl",
+)
+
+
+def scale_observations(multi_sys_ys, alpha):
+    """Scale the last 5 columns of axis -1 (the observation dims) by alpha."""
+    scaled = multi_sys_ys.copy()
+    scaled[..., -5:] *= alpha
+    return scaled
 
 
 def default_output_dir(ckpt_path):
@@ -50,8 +61,11 @@ def default_output_dir(ckpt_path):
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ckpt_path", type=str, default=DEFAULT_CKPT_PATH)
-    parser.add_argument("--traces_path", type=str, default=DEFAULT_TRACES_PATH,
-                         help="Pickle of pre-built interleaved traces (multi_sys_ys, ...).")
+    parser.add_argument("--dataset", type=str, choices=["val", "train"], default="val",
+                         help="Which pre-built traces set to run on; picks traces_path unless --traces_path is explicitly given.")
+    parser.add_argument("--traces_path", type=str, default=None,
+                         help="Pickle of pre-built interleaved traces (multi_sys_ys, ...). "
+                              "Defaults to the val or train file for --dataset.")
     parser.add_argument("--max_examples", type=int, default=None,
                          help="Limit number of traces for a quick test run. Default: all traces.")
     parser.add_argument("--output_dir", type=str, default=None)
@@ -74,6 +88,7 @@ def load_multi_sys_ys(path):
     with open(path, "rb") as f:
         data = pickle.load(f)
     multi_sys_ys = data["multi_sys_ys"]
+    print(f"Loaded multi_sys_ys from {path} with shape {multi_sys_ys.shape}")
     # flatten (num_exs, num_trace_configs, num_trials, ...) into one leading
     # per-trace batch axis so max_examples slices individual traces
     return multi_sys_ys
@@ -106,25 +121,46 @@ def compute_quartiles_median_squared_error(config, preds, multi_sys_ys):
     print(f"quart_med_se shape: {quart_med_se.shape}")
     return quart_med_se
 
-def plot_median_squared_error_vs_index(quart_med_se , quart_med_se_31000):
+def plot_median_squared_error_vs_index(quart_med_se , quart_med_se_31000, dataset=""):
     """Plot the median of the median squared error vs index."""
     fig, ax = plt.subplots(1, 1, figsize=(5, 3))
 
     max_ind = 7
     indices = np.arange(max_ind)
     ax.plot(indices, quart_med_se[1,:max_ind], marker="o", color="black", label="step=135000")
-    ax.fill_between(indices, quart_med_se[0,:max_ind], quart_med_se[2,:max_ind], color="gray", alpha=0.5)
+    ax.fill_between(indices, quart_med_se[0,:max_ind], quart_med_se[2,:max_ind], color="gray", alpha=0.35)
     ax.plot(indices, quart_med_se_31000[1, :max_ind], marker="o", color="blue", label="step=31000")
-    ax.fill_between(indices, quart_med_se_31000[0, :max_ind], quart_med_se_31000[2, :max_ind], color="blue", alpha=0.5)
+    ax.fill_between(indices, quart_med_se_31000[0, :max_ind], quart_med_se_31000[2, :max_ind], color="blue", alpha=0.35)
     ax.set_xlabel("Index")
     ax.set_ylabel("Squared Error")
     ax.legend()
     fig.tight_layout()
 
     os.makedirs("perturbation/medse_vs_index_plots", exist_ok=True)
-    plt.savefig(f"perturbation/medse_vs_index_plots/medse_vs_index.pdf", format="pdf", bbox_inches="tight")
+    plt.savefig(f"perturbation/medse_vs_index_plots/{dataset}_medse_vs_index.pdf", format="pdf", bbox_inches="tight")
 
 
+def plot_median_squared_error_vs_index_alphas(quart_med_se_by_alpha, dataset=""):
+    """Plot median squared error vs index for multiple alpha-scaled observation sets."""
+    fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+
+    max_ind = 7
+    indices = np.arange(max_ind)
+    alphas = sorted(quart_med_se_by_alpha.keys())
+    colors = plt.cm.viridis(np.linspace(0, 1, len(alphas)))
+
+    for alpha, color in zip(alphas, colors):
+        quart_med_se = quart_med_se_by_alpha[alpha]
+        ax.plot(indices, quart_med_se[1, :max_ind], marker="o", color=color, label=f"a={alpha}")
+        ax.fill_between(indices, quart_med_se[0, :max_ind], quart_med_se[2, :max_ind], color=color, alpha=0.2)
+
+    ax.set_xlabel("Index")
+    ax.set_ylabel("Squared Error")
+    ax.legend()
+    fig.tight_layout()
+
+    os.makedirs("perturbation/medse_vs_index_plots", exist_ok=True)
+    plt.savefig(f"perturbation/medse_vs_index_plots/{dataset}_medse_vs_index_alphas.pdf", format="pdf", bbox_inches="tight")
 
 
 def main():
@@ -142,10 +178,12 @@ def main():
     end = time.time()
     print(f"Loaded model from {args.ckpt_path} onto {args.device} in {end - start:.2f} seconds\n")
 
+    traces_path = args.traces_path or (DEFAULT_TRACES_PATH if args.dataset == "val" else TRAIN_TRACES_PATH)
+
     start = time.time()
-    multi_sys_ys = load_multi_sys_ys(args.traces_path)
+    multi_sys_ys = load_multi_sys_ys(traces_path)
     end = time.time()
-    print(f"Loaded {multi_sys_ys.shape[0]*multi_sys_ys.shape[2]} traces from {args.traces_path} in {end - start:.2f} seconds\n")
+    print(f"Loaded {multi_sys_ys.shape[0]*multi_sys_ys.shape[2]} traces from {traces_path} in {end - start:.2f} seconds\n")
 
     start = time.time()
     preds = run_inference(model, multi_sys_ys, args.device, config, args.max_examples)
@@ -159,6 +197,20 @@ def main():
     print(f"preds shape: {preds.shape}\n")
     print(f"Wrote outputs to {output_dir}\n")
 
+    alpha_step = 0.1
+    alpha_scale = round(1 / alpha_step)
+    alphas = np.arange(round(0.5 * alpha_scale), round(1.5 * alpha_scale) + 1) / alpha_scale
+    print(f"alphas: {alphas}")
+
+    quart_med_se_by_alpha = {1.0: quart_med_se}
+
+    for alpha in alphas:
+        scaled_multi_sys_ys = scale_observations(multi_sys_ys, alpha)
+        scaled_preds = run_inference(model, scaled_multi_sys_ys, args.device, config, args.max_examples)
+        quart_med_se_by_alpha[round(float(alpha), 1)] = compute_quartiles_median_squared_error(config, scaled_preds, scaled_multi_sys_ys)
+
+    plot_median_squared_error_vs_index_alphas(quart_med_se_by_alpha, dataset=args.dataset)
+
     #ckpt_path currently for step=135000. change the step number to 31000
     ckpt_path = args.ckpt_path.replace("step=135000", "step=31000")
     output_dir = default_output_dir(ckpt_path)
@@ -169,11 +221,12 @@ def main():
 
     start = time.time()
     preds_31000 = run_inference(model_31000, multi_sys_ys, args.device, config, args.max_examples)
+    end = time.time()
     print(f"Ran inference on {preds_31000.shape[0]*preds_31000.shape[2]} traces in {end - start:.2f} seconds\n")
 
     quart_med_se_31000 = compute_quartiles_median_squared_error(config, preds_31000, multi_sys_ys)
 
-    plot_median_squared_error_vs_index(quart_med_se, quart_med_se_31000)
+    plot_median_squared_error_vs_index(quart_med_se, quart_med_se_31000, dataset=args.dataset)
 
 
 if __name__ == "__main__":

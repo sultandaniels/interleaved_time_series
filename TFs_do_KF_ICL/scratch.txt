@@ -1,10 +1,21 @@
-srun -A benv-dtai-gh --time=00:30:00 --nodes=1 --ntasks-per-node=1 \
---partition=ghx4 --gpus=1 --mem=120g --pty /bin/bash
+tmux new -s perturbation
+Detach: Ctrl-b then d (instead of Ctrl-a d)
+Reattach later: tmux attach -t perturbation
+List sessions: tmux ls
+Kill a session: tmux kill-session -t perturbation
+
+srun -A benv-delta-gpu --time=06:00:00 --nodes=1 --ntasks-per-node=1 \
+--partition=gpuA40x4 --gpus=1 --mem=120g --pty /bin/bash
 
 module load cuda/12.6
 export PYTHONUSERBASE=/projects/benv/sdaniels2/pyuserbase
 export PATH="$PYTHONUSERBASE/bin:/sw/user/python/miniforge3-pytorch-24.11.3/bin:$PATH"
 python -c "import torch, sys; print(sys.executable); print(torch.__version__, torch.version.cuda, torch.cuda.is_available())"
+
+
+module purge
+module load cray-python/3.12.12
+export PYTHONUSERBASE=/projects/benv/sdaniels2/pyuserbase
 
 
 rsync -avh --progress sdaniels2@dtai-login.delta.ncsa.illinois.edu:/projects/benv/sdaniels2/interleaved_time_series/TFs_do_KF_ICL/outputs/GPT2/backstory_unmasked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/needles /home/sultand/interleaved_time_series/TFs_do_KF_ICL/outputs/GPT2/backstory_unmasked_250501_221900.f583e5_multi_sys_trace_ortho_haar_state_dim_5_ident_C_lr_1.4766370475008905e-05_num_train_sys_40000/
