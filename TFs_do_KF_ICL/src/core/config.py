@@ -31,8 +31,8 @@ class Config(object, metaclass=Singleton):
     changing = False #used only for plotting
 
     #mem_suppress experiment settings
-    mem_suppress = True #run the memory suppression experiment
-    masking = True #run the masking training run
+    mem_suppress = False #run the memory suppression experiment
+    masking = False #run the masking training run
     random_mask = False #randomly mask indices in each system's first appearance instead of the first backstory_len indices
     iid_gaussian = False #use i.i.d. Gaussian noise as backstory
     iid_gaussian_test = False #use i.i.d. Gaussian noise as backstory for validation data only
@@ -41,7 +41,7 @@ class Config(object, metaclass=Singleton):
     eval_backstory_len = None #eval-time override: force backstory_len to this value (int) when generating/loading test data; output artifacts get an eval_backlen_{N}_ tag to avoid clashing with the base run
     eval_sys_subset = None #eval-time override (needle-in-haystack only): restrict the enumerated system range. None -> full range (default). "masked" -> indices in [0, ceil(back_frac*num_tasks)); "unmasked" -> indices in [ceil(back_frac*num_tasks), num_tasks). Output artifacts get a sys_subset_{masked,unmasked}_ tag and a sys_subset_{masked,unmasked}/ figure subdirectory.
     cached_data = False #use cached data
-    backstory = True #use backstories
+    backstory = False #use backstories
     mask_only_init = False #only mask the initial segment
     backstory_len = 7#ny + 2 #length of the backstory
     mask_budget = 10 #max # of systems that will be masked on first appearance (alpha)

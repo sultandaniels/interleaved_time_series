@@ -13,6 +13,7 @@ import re
 import sys
 import time
 import matplotlib.pyplot as plt
+import numpy.linalg as lin
 
 BASE_PATH = "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/"
 os.environ.setdefault("BASE_PATH", BASE_PATH)
@@ -140,7 +141,7 @@ def plot_median_squared_error_vs_index(quart_med_se , quart_med_se_31000, datase
     plt.savefig(f"perturbation/medse_vs_index_plots/{dataset}_medse_vs_index.pdf", format="pdf", bbox_inches="tight")
 
 
-def plot_median_squared_error_vs_index_alphas(quart_med_se_by_alpha, dataset=""):
+def plot_median_squared_error_vs_index_alphas(quart_med_se_by_alpha, quart_med_se_31000, dataset=""):
     """Plot median squared error vs index for multiple alpha-scaled observation sets."""
     fig, ax = plt.subplots(1, 1, figsize=(5, 5))
 
@@ -150,9 +151,15 @@ def plot_median_squared_error_vs_index_alphas(quart_med_se_by_alpha, dataset="")
     colors = plt.cm.viridis(np.linspace(0, 1, len(alphas)))
 
     for alpha, color in zip(alphas, colors):
+
+        if alpha == 1.0:
+            color = "red"  # Highlight the original alpha=1.0 case
         quart_med_se = quart_med_se_by_alpha[alpha]
         ax.plot(indices, quart_med_se[1, :max_ind], marker="o", color=color, label=f"a={alpha}")
         ax.fill_between(indices, quart_med_se[0, :max_ind], quart_med_se[2, :max_ind], color=color, alpha=0.2)
+
+    ax.plot(indices, quart_med_se_31000[1, :max_ind], marker="o", color="blue", label="step=31000")
+    ax.fill_between(indices, quart_med_se_31000[0, :max_ind], quart_med_se_31000[2, :max_ind], color="blue", alpha=0.2)
 
     ax.set_xlabel("Index")
     ax.set_ylabel("Squared Error")
@@ -161,6 +168,37 @@ def plot_median_squared_error_vs_index_alphas(quart_med_se_by_alpha, dataset="")
 
     os.makedirs("perturbation/medse_vs_index_plots", exist_ok=True)
     plt.savefig(f"perturbation/medse_vs_index_plots/{dataset}_medse_vs_index_alphas.pdf", format="pdf", bbox_inches="tight")
+
+def construct_Q(x, c):
+    """Deterministically construct a real orthogonal Q such that x^T Q x = c."""
+    x = np.asarray(x, dtype=float)
+    n = x.shape[0]
+    norm_x = lin.norm(x)
+    assert norm_x > 0, "x must be nonzero"
+    assert abs(c) <= norm_x**2 + 1e-8, "c must satisfy |c| <= ||x||^2 (Cauchy-Schwarz)"
+
+    u = x/norm_x # unit vector of initial state
+    t = c/norm_x**2 # scaling factor for the perturbation along the direction of x
+
+    if n == 1:
+        assert abs(abs(t) - 1) < 1e-8, "in 1D, c must equal +-||x||^2"
+        return np.array([[t]])
+
+    # deterministically pick a unit vector v orthogonal to u: Gram-Schmidt the
+    # first standard basis vector that isn't parallel to u
+    v = None
+    for j in range(n):
+        e_j = np.zeros(n)
+        e_j[j] = 1.0
+        candidate = e_j - (u @ e_j) * u
+        candidate_norm = lin.norm(candidate)
+        if candidate_norm > 1e-8:
+            v = candidate/candidate_norm
+            break
+
+    s = np.sqrt(max(1 - t**2, 0.0)) # clamp for float error when |t| == 1
+    Q = np.eye(n) + (t - 1)*(np.outer(u, u) + np.outer(v, v)) + s*(np.outer(v, u) - np.outer(u, v))
+    return Q
 
 
 def main():
@@ -200,16 +238,20 @@ def main():
     alpha_step = 0.1
     alpha_scale = round(1 / alpha_step)
     alphas = np.arange(round(0.5 * alpha_scale), round(1.5 * alpha_scale) + 1) / alpha_scale
-    print(f"alphas: {alphas}")
+    print(f"\nalphas: {alphas}\n")
 
     quart_med_se_by_alpha = {1.0: quart_med_se}
 
     for alpha in alphas:
         scaled_multi_sys_ys = scale_observations(multi_sys_ys, alpha)
         scaled_preds = run_inference(model, scaled_multi_sys_ys, args.device, config, args.max_examples)
-        quart_med_se_by_alpha[round(float(alpha), 1)] = compute_quartiles_median_squared_error(config, scaled_preds, scaled_multi_sys_ys)
+        quart_med_se_by_alpha[alpha] = compute_quartiles_median_squared_error(config, scaled_preds, scaled_multi_sys_ys)
 
-    plot_median_squared_error_vs_index_alphas(quart_med_se_by_alpha, dataset=args.dataset)
+    os.makedirs("perturbation/medse_vs_index_plots", exist_ok=True)
+    #save quart_med_se_by_alpha
+    np.savez("perturbation/medse_vs_index_plots/quart_med_se_by_alpha.npz", **quart_med_se_by_alpha)
+    #save alphas
+    np.save("perturbation/medse_vs_index_plots/alphas.npy", alphas)
 
     #ckpt_path currently for step=135000. change the step number to 31000
     ckpt_path = args.ckpt_path.replace("step=135000", "step=31000")
@@ -227,6 +269,7 @@ def main():
     quart_med_se_31000 = compute_quartiles_median_squared_error(config, preds_31000, multi_sys_ys)
 
     plot_median_squared_error_vs_index(quart_med_se, quart_med_se_31000, dataset=args.dataset)
+    plot_median_squared_error_vs_index_alphas(quart_med_se_by_alpha, quart_med_se_31000, dataset=args.dataset)
 
 
 if __name__ == "__main__":

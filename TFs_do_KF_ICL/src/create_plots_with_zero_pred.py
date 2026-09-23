@@ -23,7 +23,7 @@ from models import GPT2, CnnKF
 from utils import RLS, plot_errs, plot_errs_conv, plot_errs_multi_sys
 from datasources import filter_dataset
 from datasources.filter_dataset import populate_traces, special_tokens, add_backstories
-from path_tags import sys_subset_filename_tag, sys_subset_figure_subdir
+from path_tags import sys_subset_filename_tag, sys_subset_figure_subdir, late_start_filename_tag
 from collect_data import collect_data
 import linalg_helpers as la
 
@@ -1926,7 +1926,8 @@ def compute_errors_needle_or_multi_cut(config, model, sim_objs, errs_dir, errs_l
     subset_active = getattr(config, "eval_sys_subset", None) in ("masked", "unmasked")
     back_frac_tag = f"backfrac_{config.back_frac}_" if (config.back_frac != 1.0 and (adds_backstories or subset_active)) else ""
     sys_subset_tag = sys_subset_filename_tag(config)
-    interleave_traces_dict_path = os.path.join(f"{os.environ.get('BASE_PATH')}train_and_test_data/{config.dataset_typ}/" + f"{datasource_prefix}_" + back_frac_tag + backstory_len_tag + sys_subset_tag + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "")+ ("identical_haystack_" if config.identical_haystack else "") + ("repeat_haystack_" if config.repeat_haystack else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
+    late_start_tag = late_start_filename_tag(config)
+    interleave_traces_dict_path = os.path.join(f"{os.environ.get('BASE_PATH')}train_and_test_data/{config.dataset_typ}/" + f"{datasource_prefix}_" + back_frac_tag + backstory_len_tag + sys_subset_tag + late_start_tag + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "")+ ("identical_haystack_" if config.identical_haystack else "") + ("repeat_haystack_" if config.repeat_haystack else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
 
     with open(interleave_traces_dict_path, "rb") as f:
         interleave_traces_dict = pickle.load(f)

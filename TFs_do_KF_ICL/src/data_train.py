@@ -22,7 +22,7 @@ import shutil
 import time
 from get_last_checkpoint import get_last_checkpoint, split_path, find_smallest_step_subdir
 from haystack_plots import haystack_plots, load_quartiles_ckpt_files, haystack_plots_train_conv_full, haystack_plots_needle_full
-from path_tags import sys_subset_filename_tag
+from path_tags import sys_subset_filename_tag, late_start_filename_tag
 from gen_pred_cktps import gen_pred_ckpts
 from core.training import mem_suppress_ckpt_path
 import resource
@@ -31,7 +31,7 @@ print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
 os.environ["WANDB_SILENT"] = "true"
 
 #set a global variable for the path "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/" "/data/shared/ICL_Kalman_Experiments/" "/media/volume/ICL_Kalman_Experiments/"
-BASE_PATH = "/media/volume/ICL_Kalman_Experiments/"
+BASE_PATH = "/work/hdd/benv/sdaniels2/ICL_Kalman_Experiments/"
 os.environ["BASE_PATH"] = BASE_PATH
 
 
@@ -1035,7 +1035,8 @@ def generate_interleaved_traces(config, ys, sim_objs, num_trials):
     subset_active = getattr(config, "eval_sys_subset", None) in ("masked", "unmasked")
     back_frac_tag = f"backfrac_{config.back_frac}_" if (config.back_frac != 1.0 and (adds_backstories or subset_active)) else ""
     sys_subset_tag = sys_subset_filename_tag(config)
-    interleave_traces_dict_path = os.path.join(f"{BASE_PATH}train_and_test_data/{config.dataset_typ}/" + f"{datasource_prefix}_" + back_frac_tag + backstory_len_tag + sys_subset_tag + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("identical_haystack_" if config.identical_haystack else "")+ ("repeat_haystack_" if config.repeat_haystack else "")+ ("iid_gaussian_" if config.iid_gaussian and not config.iid_gaussian_test else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
+    late_start_tag = late_start_filename_tag(config)
+    interleave_traces_dict_path = os.path.join(f"{BASE_PATH}train_and_test_data/{config.dataset_typ}/" + f"{datasource_prefix}_" + back_frac_tag + backstory_len_tag + sys_subset_tag + late_start_tag + ("ortho_sync_" if config.val_dataset_typ == "ortho_sync" else "") + ("fix_needle_" if config.fix_needle else "") + ("opposite_ortho_" if config.opposite_ortho else "") + ("irrelevant_tokens_" if config.irrelevant_tokens else "") + ("same_tokens_" if config.same_tokens else "") + ("new_hay_insert_" if config.new_hay_insert else "")+ ("paren_swap_" if config.paren_swap else "") + ("zero_cut_" if config.zero_cut else "") + ("identical_haystack_" if config.identical_haystack else "")+ ("repeat_haystack_" if config.repeat_haystack else "")+ ("iid_gaussian_" if config.iid_gaussian and not config.iid_gaussian_test else "") + ("iid_gaussian_test_" if config.iid_gaussian_test else "") + ("backstory_test_" if config.backstory_test else "") + f"interleaved_traces_{config.dataset_typ}{config.C_dist}_{interleaving}_state_dim_{config.nx}.pkl")
 
     # raise ValueError(f"interleave_traces_dict_path: {interleave_traces_dict_path} does not exist. Please create it before running this function.")
 
@@ -4835,7 +4836,7 @@ if __name__ == '__main__':
                 if config.len_seg_haystack == 2:
                     steps_in = [1,2,3]
                 else:
-                    steps_in = list(range(1, config.len_seg_haystack+1))
+                    steps_in = list(range(1, 9))
             else:
                 if config.val_dataset_typ == "ident" or config.val_dataset_typ == "gaussA":
                     steps_in = [1,2,3,5,10]

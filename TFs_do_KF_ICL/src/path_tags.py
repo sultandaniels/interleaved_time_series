@@ -13,6 +13,13 @@ def sys_subset_filename_tag(config) -> str:
     return f"sys_subset_{s}_" if s else ""
 
 
+def late_start_filename_tag(config) -> str:
+    # late_start shifts every segment's source offset (filter_dataset.py:240), so it must be
+    # part of the interleaved-traces cache key or a shifted run silently reuses unshifted traces.
+    ls = getattr(config, "late_start", None)
+    return f"late_start_{ls}_" if ls else ""
+
+
 def sys_subset_figure_subdir(config) -> str:
     s = getattr(config, "eval_sys_subset", None)
     return f"sys_subset_{s}/" if s else ""

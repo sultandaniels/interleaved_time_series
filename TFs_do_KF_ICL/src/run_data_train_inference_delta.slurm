@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=unmask_back_backtrain_mid_debug
-#SBATCH --account=benv-dtai-gh
-#SBATCH --partition=ghx4
+#SBATCH --job-name=late_start_1
+#SBATCH --account=benv-delta-gpu
+#SBATCH --partition=gpuA40x4,gpuA100x4,gpuH200x8
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
@@ -24,6 +24,6 @@ nvidia-smi
 python -c "import torch; print('PyTorch:', torch.__version__, 'CUDA available:', torch.cuda.is_available())"
 
 cd /projects/benv/sdaniels2/interleaved_time_series/TFs_do_KF_ICL/src
-python data_train.py --multi_haystack --model_name ortho_haar_big_mask_backstory_init --make_preds --all_steps_in --haystack_len 1 --late_start 1 --datasource train
+python data_train.py --multi_haystack --model_name ortho_haar_big_mask_backstory_init --saved_preds --all_steps_in --haystack_len 1 --late_start 1 --datasource train
 
 echo "Job finished at: $(date)"
